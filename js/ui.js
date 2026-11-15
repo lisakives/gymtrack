@@ -162,8 +162,48 @@
     });
   }
 
+  /* ---------- Pieni valikko (popover) ---------- */
+  // items: [{ label, icon?, action? (data-action), href?, danger? }]
+  let popEl = null;
+  function closeMenu() {
+    if (!popEl) return;
+    popEl.classList.remove('open');
+    const el = popEl; popEl = null;
+    setTimeout(() => el.remove(), 180);
+    document.removeEventListener('pointerdown', onOutside, true);
+    window.removeEventListener('resize', closeMenu);
+  }
+  function onOutside(e) { if (popEl && !popEl.contains(e.target)) closeMenu(); }
+  function menu(anchor, items) {
+    closeMenu();
+    const el = document.createElement('div');
+    el.className = 'pop-menu';
+    el.setAttribute('role', 'menu');
+    el.innerHTML = items.map(it => {
+      const cls = 'pop-item' + (it.danger ? ' danger' : '');
+      const inner = `${it.icon ? icon(it.icon) : ''}<span>${esc(it.label)}</span>`;
+      return it.href
+        ? `<a class="${cls}" role="menuitem" href="${it.href}">${inner}</a>`
+        : `<button class="${cls}" role="menuitem" data-action="${it.action}"${it.data ? ' ' + it.data : ''}>${inner}</button>`;
+    }).join('');
+    document.body.appendChild(el);
+    const r = anchor.getBoundingClientRect();
+    const w = el.offsetWidth, h = el.offsetHeight;
+    const left = Math.min(Math.max(8, r.right - w), window.innerWidth - w - 8);
+    const below = r.bottom + 8 + h < window.innerHeight - 8;
+    el.style.left = left + 'px';
+    el.style.top = (below ? r.bottom + 8 : Math.max(8, r.top - h - 8)) + 'px';
+    el.style.transformOrigin = below ? 'top right' : 'bottom right';
+    popEl = el;
+    requestAnimationFrame(() => el.classList.add('open'));
+    el.addEventListener('click', e => { if (e.target.closest('.pop-item')) setTimeout(closeMenu, 0); });
+    document.addEventListener('pointerdown', onOutside, true);
+    window.addEventListener('resize', closeMenu);
+    return el;
+  }
+
   function haptic(ms = 12) { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) { /* iOS ei tue */ } }
 
   window.GT = window.GT || {};
-  GT.ui = { esc, icon, toast, sheet, confirm, form, haptic };
+  GT.ui = { esc, icon, toast, sheet, confirm, form, haptic, menu, closeMenu };
 })();

@@ -139,7 +139,7 @@ await page.click('[data-sheet="delete"]');
 await page.waitForTimeout(300);
 ok((await state()).food.entries.length === before - 1, 'ruoan poisto toimii');
 // tavoitteet
-await page.click('button[data-action="food-goals"]');
+await page.click('button[data-action="food-menu"]'); await page.click('.pop-menu button[data-action="food-goals"]');
 await page.fill('#f_kcal', '2600'); await page.fill('#f_protein', '170');
 await page.click('.sheet-form button[type="submit"]');
 await page.waitForTimeout(300);
@@ -166,7 +166,7 @@ await go('#/reminders');
 ok((await page.$$('.rem-list .list-row')).length === 7, 'oletusmuistutukset (6 + viikkoraportti)');
 const times = await page.$$eval('.rem-time', els => els.map(e => e.textContent.trim().slice(0, 5)));
 ok(['09.00', '12.00', '15.30', '19.30', '20.00', '21.00'].every(t => times.some(x => x.startsWith(t))), 'kellonajat vastaavat suunnitelmaa');
-await page.click('button[data-action="rem-new"]');
+await page.click('button[data-action="rem-menu"]'); await page.click('.pop-menu button[data-action="rem-new"]');
 await page.waitForSelector('.rem-form');
 await page.fill('.rem-form input[name="time"]', '10:15');
 await page.fill('.rem-form input[name="title"]', 'Juo vettä');
