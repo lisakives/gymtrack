@@ -46,7 +46,7 @@
 
   function pushBanner() {
     const st = S();
-    if (st.push && st.push.subscribed && (!('Notification' in window) || Notification.permission === 'granted')) return '';
+    if (GT.push.nativeOn ? GT.push.nativeOn() : (st.push && st.push.subscribed && (!('Notification' in window) || Notification.permission === 'granted'))) return '';
     const ps = VS.pushStatus;
     let text = 'Ota puhelimen ilmoitukset käyttöön, niin muistutukset tulevat myös sovelluksen ollessa suljettuna.';
     if (ps && ps.permission === 'denied') text = 'Ilmoitukset on estetty puhelimen asetuksista. Katso ohjeet.';

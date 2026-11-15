@@ -727,7 +727,7 @@
       <main class="content">
         <div class="section-title">Elämäntavat</div>
         <section class="card">
-          <a class="list-row link-row" href="#/notifications"><div class="grow"><b>Puhelimen ilmoitukset</b><div class="muted sm">${st.push && st.push.subscribed ? 'Käytössä' : 'Ei käytössä'}</div></div>${icon('chevron', 'muted')}</a>
+          <a class="list-row link-row" href="#/notifications"><div class="grow"><b>Puhelimen ilmoitukset</b><div class="muted sm">${(GT.push.nativeOn ? GT.push.nativeOn() : st.push && st.push.subscribed) ? 'Käytössä' : 'Ei käytössä'}</div></div>${icon('chevron', 'muted')}</a>
           <a class="list-row link-row" href="#/reminders"><div class="grow"><b>Muistutukset ja tehtävät</b><div class="muted sm">${(st.reminders || []).length} muistutusta</div></div>${icon('chevron', 'muted')}</a>
           <button class="list-row link-row" data-action="food-goals"><div class="grow"><b>Ruokatavoitteet</b><div class="muted sm">${st.food ? `${st.food.goals.kcal} kcal · proteiini ${st.food.goals.protein} g` : ''}</div></div>${icon('chevron', 'muted')}</button>
         </section>
