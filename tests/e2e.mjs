@@ -45,6 +45,8 @@ await ctx.addInitScript(([st, push]) => {
   window.__push = push;
 }, [oldState, PUSH]);
 const page = await ctx.newPage();
+// Ulkoiset ruokatietopyynnöt estetään testeissä, jotta tulokset ovat toistettavia (oikea haku testataan erikseen mockilla).
+await page.route('https://world.openfoodfacts.org/**', route => route.fulfill({ contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ count: 0, products: [], status: 0 }) }));
 const errors = [];
 page.on('pageerror', e => errors.push(e.message));
 page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|fonts\.googleapis|ERR_/.test(m.text())) errors.push(m.text()); });
@@ -121,6 +123,30 @@ await page.waitForTimeout(400);
 st = await state();
 ok(st.food.favorites.length === 2 && st.food.favorites[1].items.length >= 2, 'koko ateria tallennettiin suosikiksi');
 // oma ruoka
+console.log('Open Food Facts');
+const offNut = { 'energy-kcal_100g': 370, proteins_100g: 12, carbohydrates_100g: 60, fat_100g: 7 };
+await page.route('**/api/v2/search**', route => route.fulfill({ contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ products: [
+  { code: '6411100001234', product_name: 'Kaurapuuro', brands: 'Testi', nutriments: offNut },
+  { code: '1', product_name: 'Ei ravintoarvoja' }
+] }) }));
+await page.route('**/api/v2/product/**', route => route.fulfill({ contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ status: 1, product: { code: '6411100001234', product_name: 'Kaurapuuro', brands: 'Testi', nutriments: offNut } }) }));
+await page.evaluate(() => { location.hash = '#/food'; });
+await page.waitForSelector('button[data-action="food-add"]');
+await page.click('button[data-action="food-add"]');
+await page.waitForSelector('.food-sheet');
+await page.fill('.food-sheet .search', 'kaura');
+await page.waitForSelector('.fr-list .fr-main:has-text("Kaurapuuro")', { timeout: 5000 });
+ok(await page.locator('.fr-list .fr-main', { hasText: 'Ei ravintoarvoja' }).count() === 0, 'tuotteet ilman ravintoarvoja jätetään pois');
+ok((await page.textContent('.food-sheet')).includes('Open Food Facts'), 'verkkohaun tulokset ja lähde näkyvät');
+await page.fill('.barcode-row .code', '6411100001234');
+await page.click('[data-code]');
+await page.waitForSelector('.amount-view', { timeout: 5000 });
+ok((await page.textContent('.amount-view')).includes('Kaurapuuro (Testi)'), 'viivakoodihaku avaa tuotteen määräsivulle');
+await page.click('[data-back]');
+await page.click('[data-sheet="done"]');
+await page.unroute('**/api/v2/search**');
+await page.unroute('**/api/v2/product/**');
+
 await page.click('button[data-action="food-add"][data-meal="snack"]');
 await page.waitForSelector('.food-sheet');
 await page.click('[data-x="custom"]');
