@@ -65,7 +65,32 @@
         setTimeout(() => wrap.remove(), 280);
         resolve(val);
       };
-      if (dismissable) wrap.querySelector('.sheet-backdrop').addEventListener('click', () => close(null));
+      if (dismissable) {
+        wrap.querySelector('.sheet-backdrop').addEventListener('click', () => close(null));
+        // Pyyhkäisy alas sulkee paneelin (kuten iOS:ssä)
+        const sh = wrap.querySelector('.sheet');
+        let y0 = null, dy = 0, t0 = 0;
+        sh.addEventListener('touchstart', e => {
+          const t = e.touches[0];
+          if (sh.scrollTop > 0 || (t.clientY - sh.getBoundingClientRect().top > 80 && !e.target.closest('.sheet-grip'))) return;
+          if (e.target.closest('input,textarea,select')) return;
+          y0 = t.clientY; dy = 0; t0 = Date.now(); sh.style.transition = 'none';
+        }, { passive: true });
+        sh.addEventListener('touchmove', e => {
+          if (y0 === null) return;
+          dy = Math.max(0, e.touches[0].clientY - y0);
+          sh.style.transform = `translateY(${dy}px)`;
+          wrap.querySelector('.sheet-backdrop').style.opacity = String(Math.max(0.2, 1 - dy / 400));
+        }, { passive: true });
+        sh.addEventListener('touchend', () => {
+          if (y0 === null) return;
+          y0 = null; sh.style.transition = '';
+          wrap.querySelector('.sheet-backdrop').style.opacity = '';
+          const fast = dy > 40 && dy / Math.max(1, Date.now() - t0) > 0.6;
+          if (dy > 120 || fast) { sh.style.transform = 'translateY(100%)'; close(null); }
+          else sh.style.transform = '';
+        });
+      }
       wrap.addEventListener('click', e => {
         const b = e.target.closest('[data-sheet]');
         if (b) { e.preventDefault(); close(b.dataset.sheet); }

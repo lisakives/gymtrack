@@ -131,7 +131,7 @@
       const x = 4 + i * bw + bw * 0.18, w = Math.max(2, bw * 0.64);
       const y = sy(it.v || 0), hh = (h - padB) - y;
       const over = opts.goal && it.v > opts.goal * 1.1;
-      return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(0, hh).toFixed(1)}" rx="3" class="${it.v ? (over ? 'c-bar over' : 'c-bar') : 'c-bar empty'}"><title>${it.hint || ''}</title></rect>` +
+      return `<rect style="--i:${i}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(0, hh).toFixed(1)}" rx="3" class="${it.v ? (over ? 'c-bar over' : 'c-bar') : 'c-bar empty'}"><title>${it.hint || ''}</title></rect>` +
         (items.length <= 14 ? `<text x="${(x + w / 2).toFixed(1)}" y="${h - 6}" class="c-lbl" text-anchor="middle">${it.label}</text>` : '');
     }).join('');
     const goal = opts.goal ? `<line x1="4" x2="${W - 4}" y1="${sy(opts.goal).toFixed(1)}" y2="${sy(opts.goal).toFixed(1)}" class="c-goal"/>` : '';
@@ -145,7 +145,7 @@
     const f = Math.max(0, Math.min(1, frac || 0));
     return `<svg class="ring ${opts.cls || ''}" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" aria-hidden="true">
       <circle cx="${size / 2}" cy="${size / 2}" r="${r}" class="ring-bg" style="stroke-width:${sw}"/>
-      ${f > 0 ? `<circle cx="${size / 2}" cy="${size / 2}" r="${r}" class="ring-fg ${frac > 1.1 ? 'over' : ''}" style="stroke-width:${sw}" stroke-dasharray="${(c * f).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 ${size / 2} ${size / 2})"/>` : ''}
+      <circle cx="${size / 2}" cy="${size / 2}" r="${r}" class="ring-fg ${f <= 0 ? 'zero' : ''} ${frac > 1.1 ? 'over' : ''}" style="stroke-width:${sw};--circ:${c.toFixed(1)};stroke-dasharray:${c.toFixed(1)};stroke-dashoffset:${(c * (1 - f)).toFixed(1)}" transform="rotate(-90 ${size / 2} ${size / 2})"/>
     </svg>`;
   }
 

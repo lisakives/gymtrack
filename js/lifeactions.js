@@ -109,7 +109,7 @@
             const { kind, x } = get(quick.dataset.quick);
             if (kind === 'fav') { addFavorite(x, date, meal); }
             else addEntries(date, meal, [itemFromResult(x)]);
-            quick.classList.add('added');
+            quick.classList.add('added'); GT.motion.pop(quick);
             return;
           }
           if (pick) {
@@ -229,7 +229,13 @@
         <button class="btn btn-ghost btn-block" data-sheet="${fromNotification ? 'cancel' : 'edit'}">${fromNotification ? 'Sulje' : icon('edit') + ' Muokkaa muistutusta'}</button>
       </div>`);
     if (!res || res === 'cancel') return;
-    if (res === 'toggle') { Store.update(s => L.setDone(s, rid, t, !done)); if (!done) { ui.haptic(15); ui.toast(`${esc(r.title)} tehty`); } sync(); render(); }
+    if (res === 'toggle') {
+      Store.update(s => L.setDone(s, rid, t, !done));
+      if (!done) { ui.haptic(15); ui.toast(`${esc(r.title)} tehty`); }
+      sync(); render();
+      const tp = L.taskProgress(S(), t);
+      if (!done && tp.total && tp.done === tp.total) GT.motion.celebrate();
+    }
     else if (res.startsWith('snz:')) {
       const min = +res.slice(4);
       try {
@@ -271,6 +277,14 @@
       Store.update(s => L.setDone(s, id, t, !was));
       if (!was) ui.haptic(15);
       sync(); render();
+      const btn = document.querySelector(`.task-check[data-id="${id}"]`);
+      if (btn) GT.motion.pop(btn.closest('li'));
+      const tp = L.taskProgress(S(), t);
+      if (!was && tp.total && tp.done === tp.total) {
+        const r = btn ? btn.getBoundingClientRect() : null;
+        GT.motion.celebrate(r ? r.left + 15 : null, r ? r.top + 15 : null);
+        ui.toast('Kaikki päivän tehtävät tehty! Hienoa!', '', 3200);
+      }
     },
     'task-menu': el => taskMenu(el.dataset.id),
     'food-add': el => foodSheet(el.dataset.date, el.dataset.meal),

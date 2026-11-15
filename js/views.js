@@ -55,7 +55,7 @@
     const r = 30, c = 2 * Math.PI * r, f = total ? Math.min(1, done / total) : 0;
     return `<svg class="ring" viewBox="0 0 76 76" aria-hidden="true">
       <circle cx="38" cy="38" r="${r}" class="ring-bg"/>
-      ${f > 0 ? '' : '<!--'}<circle cx="38" cy="38" r="${r}" class="ring-fg" stroke-dasharray="${(c * f).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 38 38)"/>${f > 0 ? '' : '-->'}
+      <circle cx="38" cy="38" r="${r}" class="ring-fg ${f > 0 ? '' : 'zero'}" style="--circ:${c.toFixed(1)};stroke-dasharray:${c.toFixed(1)};stroke-dashoffset:${(c * (1 - f)).toFixed(1)}" transform="rotate(-90 38 38)"/>
     </svg>`;
   }
 

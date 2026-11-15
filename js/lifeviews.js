@@ -80,10 +80,10 @@
         ${active ? `<a class="active-banner" href="#/session"><span class="pulse"></span><span class="ab-text"><b>${esc(active.workoutName)} käynnissä</b><span data-elapsed="${active.startedAt}">${F.clock(Date.now() - new Date(active.startedAt))}</span></span><span class="ab-cta">Jatka ${icon('chevron')}</span></a>` : ''}
 
         <section class="card today-top">
-          <div class="tt-ring">${C.ring(tp.total ? tp.done / tp.total : 0)}<div class="ring-num"><b>${tp.pct}</b><span>%</span></div></div>
+          <div class="tt-ring">${C.ring(tp.total ? tp.done / tp.total : 0)}<div class="ring-num"><b data-count="${tp.pct}">${tp.pct}</b><span>%</span></div></div>
           <div class="grow">
             <div class="card-label">Päivän tehtävät</div>
-            <div class="week-text">${tp.done}/${tp.total} tehty</div>
+            <div class="week-text">${tp.done}/${tp.total} tehty${tp.total && tp.done === tp.total ? ' 🎉' : ''}</div>
             ${next ? `<div class="next-rem">${icon('bell', 'inline')} <span>Seuraava: <b>${atLabel(next.at)}</b> ${esc(next.r.title)}${next.snoozed ? ' (torkku)' : ''}</span></div>
               <div class="muted sm">${relTime(+next.at)}</div>` : '<div class="muted sm">Ei tulevia muistutuksia</div>'}
           </div>
@@ -103,7 +103,7 @@
         <a class="card card-link food-sum" href="#/food">
           <div class="row-between"><div class="card-label">Ruoka tänään</div>${icon('chevron', 'muted')}</div>
           <div class="fs-row">
-            <div class="fs-kcal">${C.ring(goals.kcal ? tot.kcal / goals.kcal : 0, { size: 84, stroke: 8, cls: 'kcal' })}<div class="ring-num col"><b>${kcal(tot.kcal)}</b><span>kcal</span></div></div>
+            <div class="fs-kcal">${C.ring(goals.kcal ? tot.kcal / goals.kcal : 0, { size: 84, stroke: 8, cls: 'kcal' })}<div class="ring-num col"><b data-count="${tot.kcal}">${kcal(tot.kcal)}</b><span>kcal</span></div></div>
             <div class="grow">
               ${macroBar('Kalorit', tot.kcal, goals.kcal, 'kcal')}
               ${macroBar('Proteiini', tot.p, goals.protein)}
@@ -161,7 +161,7 @@
         </div>
         <section class="card food-total">
           <div class="ft-head">
-            <div><div class="big">${kcal(tot.kcal)}<small> kcal</small></div>
+            <div><div class="big"><span data-count="${tot.kcal}">${kcal(tot.kcal)}</span><small> kcal</small></div>
               <div class="muted sm">${left === null ? '' : left >= 0 ? `${kcal(left)} kcal jäljellä` : `${kcal(-left)} kcal yli tavoitteen`}</div></div>
             <div class="ft-ring">${C.ring(goals.kcal ? tot.kcal / goals.kcal : 0, { size: 64, stroke: 7 })}</div>
           </div>
@@ -365,7 +365,7 @@
         </div>
         <section class="stat-grid">
           <div class="card stat"><div class="card-label">Ruokaseuranta</div><div class="big sm">${r.logged}<small> / 7 pv</small></div><div class="muted sm">${r.past < 7 ? `${r.past} päivää kulunut` : Math.round(r.logged / 7 * 100) + ' % toteutuma'}</div></div>
-          <div class="card stat"><div class="card-label">Ka. kalorit / pv</div><div class="big sm">${r.logged ? kcal(r.avgKcal) : '–'}</div><div class="muted sm">Tavoite ${kcal(goals.kcal)} kcal</div></div>
+          <div class="card stat"><div class="card-label">Ka. kalorit / pv</div><div class="big sm">${r.logged ? `<span data-count="${r.avgKcal}">${kcal(r.avgKcal)}</span>` : '–'}</div><div class="muted sm">Tavoite ${kcal(goals.kcal)} kcal</div></div>
           <div class="card stat"><div class="card-label">Ka. proteiini / pv</div><div class="big sm">${r.logged ? F.num(r.avgP, 0) : '–'}<small> g</small></div><div class="muted sm">Tavoite ${goals.protein} g</div></div>
           <div class="card stat"><div class="card-label">Paino</div><div class="big sm">${r.weight.last ? F.num(r.weight.last.value) + '<small> kg</small>' : '–'}</div><div class="muted sm">${r.weight.change !== null ? `${r.weight.change > 0 ? '+' : ''}${F.num(r.weight.change)} kg ${r.weight.prev ? 'edellisestä' : 'viikon aikana'}` : r.weight.last ? 'Yksi mittaus' : 'Ei mittauksia'}</div></div>
           <div class="card stat"><div class="card-label">Tehtävät</div><div class="big sm">${r.tasksDone}<small> / ${r.tasksTotal}</small></div><div class="muted sm">${taskPct === null ? '–' : taskPct + ' % suoritettu'}</div></div>
