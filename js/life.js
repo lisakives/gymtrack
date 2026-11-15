@@ -33,13 +33,15 @@
   }
 
   /* ---------- Oletusmuistutukset ---------- */
+  const TRIP_MEAL = 'Työpäivä: syö proteiinia ja juo vettä. Ota ateriatauko ja kirjaa ateria.';
+
   function defaultReminders() {
     const r = (id, time, title, body, extra = {}) => ({ id, time, title, body, days: [], enabled: true, notify: true, ...extra });
     return [
       r('r_start', '09:00', 'Päivän käynnistys', 'Katso päivän tehtävät ja aloita päivä suunnitellusti.'),
-      r('r_meal1', '12:00', 'Ensimmäinen ateria', 'Aika syödä päivän ensimmäinen ateria. Kirjaa se sovellukseen.', { kind: 'meal', meal: 'm1' }),
-      r('r_meal2', '15:30', 'Seuraava ateria', 'Aika seuraavalle aterialle. Muista proteiini.', { kind: 'meal', meal: 'm2' }),
-      r('r_meal3', '19:30', 'Viimeinen ateria', 'Päivän viimeinen ateria. Kirjaa se heti.', { kind: 'meal', meal: 'm3' }),
+      r('r_meal1', '12:00', 'Ensimmäinen ateria', 'Aika syödä päivän ensimmäinen ateria. Kirjaa se sovellukseen.', { kind: 'meal', meal: 'm1', tripBody: TRIP_MEAL }),
+      r('r_meal2', '15:30', 'Seuraava ateria', 'Aika seuraavalle aterialle. Muista proteiini.', { kind: 'meal', meal: 'm2', tripBody: TRIP_MEAL }),
+      r('r_meal3', '19:30', 'Viimeinen ateria', 'Päivän viimeinen ateria. Kirjaa se heti.', { kind: 'meal', meal: 'm3', tripBody: TRIP_MEAL }),
       r('r_summary', '20:00', 'Päivän ruokailujen yhteenveto', 'Tarkista, että kaikki päivän ateriat on kirjattu.', { kind: 'summary' }),
       r('r_prep', '21:00', 'Huomiseen valmistautuminen', 'Valmistele huomisen ateriat ja katso huomisen tehtävät.'),
       r('r_week', '18:00', 'Viikkoraportti', 'Viikon yhteenveto on valmis. Katso, mitä parannat ensi viikolla.', { days: [6], kind: 'report' })
@@ -51,6 +53,7 @@
       food: { entries: [], favorites: [], goals: { kcal: 2400, protein: 160, carbs: 250, fat: 80, weight: null } },
       reminders: defaultReminders(),
       tasks: { done: {}, since: today() },
+      trip: null,
       push: { userId: null, secret: null, server: '', subscribed: false, endpoint: null, lastSync: null, lastError: null },
       snoozed: {}
     };
@@ -67,6 +70,9 @@
     if (!st.food.goals) { st.food.goals = def.food.goals; changed = true; }
     if (!st.tasks.done) { st.tasks.done = {}; changed = true; }
     if (!Array.isArray(st.reminders)) { st.reminders = def.reminders; changed = true; }
+    if (st.trip === undefined) { st.trip = null; changed = true; }
+    // Vanhoihin ateriamuistutuksiin lisätään matkateksti
+    st.reminders.forEach(r => { if (r.kind === 'meal' && !r.tripBody) { r.tripBody = TRIP_MEAL; changed = true; } });
     // Päivä, josta lähtien tehtäviä seurataan (ei lasketa aiempia päiviä tekemättömiksi)
     if (!st.tasks.since) { st.tasks.since = today(); changed = true; }
     return changed;
@@ -157,6 +163,12 @@
   }
 
   /** Seuraava ilmoitus: { r, at: Date, snoozed } */
+  /** Onko päivä matkalla ("Olen ajo keikalla"). */
+  function onTrip(st, date) {
+    const t = st.trip;
+    return !!(t && t.from && t.to && date >= t.from && date <= t.to);
+  }
+
   function nextReminder(st, now = new Date()) {
     const out = [];
     const tISO = iso(now);
@@ -257,7 +269,8 @@
     try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || tz; } catch (e) { /* */ }
     return {
       tz,
-      reminders: st.reminders.map(r => ({ id: r.id, time: r.time, title: r.title, body: r.body, days: r.days || [], enabled: r.enabled !== false, notify: r.notify !== false, kind: r.kind })),
+      trip: st.trip || null,
+      reminders: st.reminders.map(r => ({ id: r.id, time: r.time, title: r.title, body: r.body, days: r.days || [], enabled: r.enabled !== false, notify: r.notify !== false, kind: r.kind, tripBody: r.tripBody })),
       done,
       summary: { date: t, kcal: tot.kcal, protein: tot.p, goalKcal: st.food.goals.kcal, goalProtein: st.food.goals.protein, tasksDone: tp.done, tasksTotal: tp.total }
     };
@@ -267,7 +280,7 @@
     MEALS, mealLabel, defaultMeal, defaultReminders, defaultLife, ensureLife,
     iso, parseISO, addDays, today, weekday, weekStartISO, hm, toMin,
     entriesOn, totals, dayTotals, scaleItem, recentFoods, searchFoods,
-    activeOn, tasksOn, taskProgress, setDone, nextReminder, autoCompleteMeal,
+    activeOn, tasksOn, taskProgress, setDone, nextReminder, autoCompleteMeal, onTrip, TRIP_MEAL,
     rangeStats, weightTrend, weeklyReport, serverState
   };
 })();
