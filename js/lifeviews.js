@@ -178,7 +178,7 @@
     const prevDay = L.addDays(date, -1);
 
     return `
-      ${header('Ruoka', { large: true, right: `<button class="icon-btn" data-action="food-goals" aria-label="Tavoitteet">${icon('flag')}</button>` })}
+      ${header('Ruoka', { large: true, right: `<button class="icon-btn" data-action="food-menu" aria-label="Ruokavalikko">${icon('list')}</button>` })}
       <main class="content">
         ${foodTabs('day')}
         <div class="date-nav">
@@ -243,7 +243,7 @@
     const pItems = s.days.map(d => ({ label: kind === 'week' ? DAY2[L.weekday(d.date)] : String(+d.date.slice(8)), v: d.p }));
     const w = L.weightTrend(st, from, L.addDays(from, days - 1));
     return `
-      ${header('Ruoka', { large: true, right: `<button class="icon-btn" data-action="food-goals" aria-label="Tavoitteet">${icon('flag')}</button>` })}
+      ${header('Ruoka', { large: true, right: `<button class="icon-btn" data-action="food-menu" aria-label="Ruokavalikko">${icon('list')}</button>` })}
       <main class="content">
         ${foodTabs(kind)}
         <div class="date-nav">
@@ -288,7 +288,7 @@
     const t = L.today();
     const done = st.tasks.done[t] || {};
     return `
-      ${header('Muistutukset', { large: true, right: `<button class="icon-btn" data-action="rem-new" aria-label="Uusi muistutus">${icon('plus')}</button>` })}
+      ${header('Muistutukset', { large: true, right: `<button class="icon-btn" data-action="rem-menu" aria-label="Muistutusvalikko">${icon('plus')}</button>` })}
       <main class="content">
         ${tripCard()}
         ${pushBanner() || `<a class="card card-link notice ok" href="#/notifications">${icon('bell')}<div class="grow"><b>Ilmoitukset päällä</b><div class="muted sm">Muistutukset tulevat myös sovelluksen ollessa suljettuna.</div></div>${icon('chevron', 'muted')}</a>`}

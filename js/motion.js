@@ -95,7 +95,7 @@
     if (reduce()) return;
     const host = document.createElement('div');
     host.className = 'confetti';
-    const colors = ['#9dd3ff', '#82d1ae', '#ffd38a', '#c8a8ff', '#ff9fb3'];
+    const colors = ['#e5393b', '#ff6a64', '#82d1ae', '#ffffff', '#ff9fb3'];
     const cx = x != null ? x : window.innerWidth / 2, cy = y != null ? y : window.innerHeight / 3;
     for (let i = 0; i < 28; i++) {
       const p = document.createElement('i');

@@ -287,6 +287,16 @@
       }
     },
     'task-menu': el => taskMenu(el.dataset.id),
+    'food-menu': el => ui.menu(el, [
+      { label: 'Tavoitteet', icon: 'flag', action: 'food-goals' },
+      { label: 'Suosikit', icon: 'trophy', href: '#/food-favs' },
+      { label: 'Viikkoraportti', icon: 'note', href: '#/food-report/week' },
+      { label: 'Kuukausiraportti', icon: 'chart', href: '#/food-report/month' }
+    ]),
+    'rem-menu': el => ui.menu(el, [
+      { label: 'Uusi muistutus', icon: 'plus', action: 'rem-new' },
+      { label: 'Palauta oletukset', icon: 'swap', action: 'rem-reset' }
+    ]),
     'food-add': el => foodSheet(el.dataset.date, el.dataset.meal),
     'fav-add': el => { const f = S().food.favorites.find(x => x.id === el.dataset.id); if (f) { addFavorite(f, el.dataset.date); render(); } },
     'fav-delete': async el => {
