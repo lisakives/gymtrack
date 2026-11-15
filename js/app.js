@@ -696,8 +696,23 @@
     if (document.visibilityState === 'visible') { GT.viewState.pushStatus = null; render(); GT.push.syncNow(); }
   });
 
+  function showUpdateBanner() {
+    if (document.querySelector('.update-banner')) return;
+    const b = document.createElement('div');
+    b.className = 'update-banner';
+    b.setAttribute('role', 'status');
+    b.innerHTML = '<span>Uusi versio on valmis.</span><button type="button">Päivitä</button>';
+    b.querySelector('button').addEventListener('click', () => location.reload());
+    document.body.appendChild(b);
+  }
+
   if ('serviceWorker' in navigator && /^https?:/.test(location.protocol) && !GT.EMBEDDED) {
-    navigator.serviceWorker.register('sw.js').then(() => GT.push.verify()).catch(err => console.warn('SW-rekisteröinti epäonnistui', err));
+    const hadController = !!navigator.serviceWorker.controller;
+    // Uusi versio aktivoituu heti, ja käyttäjälle näytetään kehotus ladata sovellus uudelleen.
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadController) showUpdateBanner(); });
+    navigator.serviceWorker.register('sw.js')
+      .then(reg => { reg.update().catch(() => {}); return GT.push.verify(); })
+      .catch(err => console.warn('SW-rekisteröinti epäonnistui', err));
     // Ilmoitusta napautettu sovelluksen ollessa auki
     navigator.serviceWorker.addEventListener('message', e => {
       if (e.data && e.data.type === 'open' && e.data.hash) { location.hash = e.data.hash; }
