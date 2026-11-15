@@ -54,6 +54,32 @@
     return `<a class="card card-link notice" href="#/notifications">${icon('bell')}<div class="grow"><b>Ilmoitukset eivät ole päällä</b><div class="muted sm">${text}</div></div>${icon('chevron', 'muted')}</a>`;
   }
 
+
+  /* ---------- Ajo keikalla ---------- */
+  function tripCard() {
+    const st = S();
+    const t = st.trip;
+    const today = L.today();
+    if (t && t.to >= today) {
+      const days = Math.round((L.parseISO(t.to) - L.parseISO(today)) / 86400000) + 1;
+      const fmt = d => F.date(L.parseISO(d), { day: 'numeric', month: 'numeric' });
+      return `<section class="card trip-card on">
+        <div class="row-between"><div class="card-label">${icon('swap', 'inline')} Olen töissä</div><button class="link sm" data-action="trip-end">Lopeta</button></div>
+        <div class="name-md">${fmt(t.from)}–${fmt(t.to)}</div>
+        <div class="muted sm">${t.from <= today ? `Töissä nyt, ${days} pv jäljellä` : `Alkaa ${fmt(t.from)}`}. Ateriamuistutukset kertovat työpäivän ohjeen.</div>
+      </section>`;
+    }
+    return `<section class="card trip-card">
+      <div class="card-label">${icon('swap', 'inline')} Olen töissä</div>
+      <div class="muted sm">Työpäivinä ateriamuistutukset muuttuvat työpäivän ohjeeksi.</div>
+      <div class="chips">
+        <button class="chip" data-action="trip-start" data-offset="0">Olen töissä</button>
+        <button class="chip" data-action="trip-start" data-offset="1">Olen huomenna töissä</button>
+      </div>
+    </section>`;
+  }
+  GT.tripCard = tripCard;
+
   /* ================= TÄNÄÄN ================= */
   V.today = () => {
     const st = S();
@@ -77,6 +103,7 @@
       </div></header>
       <main class="content">
         ${pushBanner()}
+        ${st.trip && st.trip.to >= t ? tripCard() : ''}
         ${active ? `<a class="active-banner" href="#/session"><span class="pulse"></span><span class="ab-text"><b>${esc(active.workoutName)} käynnissä</b><span data-elapsed="${active.startedAt}">${F.clock(Date.now() - new Date(active.startedAt))}</span></span><span class="ab-cta">Jatka ${icon('chevron')}</span></a>` : ''}
 
         <section class="card today-top">
@@ -263,6 +290,7 @@
     return `
       ${header('Muistutukset', { large: true, right: `<button class="icon-btn" data-action="rem-new" aria-label="Uusi muistutus">${icon('plus')}</button>` })}
       <main class="content">
+        ${tripCard()}
         ${pushBanner() || `<a class="card card-link notice ok" href="#/notifications">${icon('bell')}<div class="grow"><b>Ilmoitukset päällä</b><div class="muted sm">Muistutukset tulevat myös sovelluksen ollessa suljettuna.</div></div>${icon('chevron', 'muted')}</a>`}
         <ul class="list card rem-list">
           ${list.map(r => `<li class="list-row ${r.enabled === false ? 'off' : ''}">

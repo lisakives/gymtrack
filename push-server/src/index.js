@@ -217,7 +217,9 @@ export function dueReminders(data, fromMs, toMs) {
       if (Array.isArray(r.days) && r.days.length && !r.days.includes(lp.wd)) continue;
       const doneToday = data.done && data.done[lp.date];
       if (doneToday && doneToday.includes(r.id)) continue;
-      out.push({ key: `${r.id}|${lp.date}|${lp.hm}`, rem: r, date: lp.date });
+      const onTrip = data.trip && data.trip.from && data.trip.to && lp.date >= data.trip.from && lp.date <= data.trip.to;
+      const rem = onTrip && r.tripBody ? { ...r, body: r.tripBody } : r;
+      out.push({ key: `${r.id}|${lp.date}|${lp.hm}`, rem, date: lp.date });
     }
   }
   return out;
@@ -304,7 +306,8 @@ function cleanReminders(list) {
     days: Array.isArray(r.days) ? r.days.filter(d => Number.isInteger(d) && d >= 0 && d <= 6) : [],
     enabled: r.enabled !== false,
     notify: r.notify !== false,
-    kind: r.kind ? String(r.kind).slice(0, 20) : undefined
+    kind: r.kind ? String(r.kind).slice(0, 20) : undefined,
+    tripBody: r.tripBody ? String(r.tripBody).slice(0, 240) : undefined
   })).filter(r => r.id);
 }
 
@@ -408,6 +411,11 @@ async function applySync(env, user, state) {
   const data = user.data;
   if (state.tz && typeof state.tz === 'string') data.tz = state.tz.slice(0, 64);
   if (state.reminders) data.reminders = cleanReminders(state.reminders);
+  if ('trip' in state) {
+    const t = state.trip;
+    const ok = t && /^\d{4}-\d{2}-\d{2}$/.test(t.from) && /^\d{4}-\d{2}-\d{2}$/.test(t.to) && t.from <= t.to;
+    data.trip = ok ? { from: t.from, to: t.to } : null;
+  }
   if (state.done && typeof state.done === 'object') {
     const done = {};
     Object.keys(state.done).slice(-3).forEach(d => {

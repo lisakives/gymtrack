@@ -190,6 +190,14 @@ await page.click('[data-sheet="delete"]');
 await page.click('[data-sheet="ok"]');
 await page.waitForTimeout(400);
 ok(!(await state()).reminders.some(r => r.id === own.id), 'muistutuksen poisto toimii');
+// Olen töissä: työpäivinä ateriamuistutus saa työpäivän tekstin
+await page.evaluate(() => { const t = GT.life.today(); GT.Store.update(s => { s.trip = { from: t, to: GT.life.addDays(t, 2) }; }); GT.render(); });
+await go('#/reminders'); await page.waitForTimeout(200);
+ok(await page.isVisible('.trip-card.on'), 'Olen töissä -kortti näkyy työjakson aikana');
+const tripPayload = await page.evaluate(() => GT.life.serverState(GT.Store.get()));
+ok(tripPayload.trip && tripPayload.reminders.find(r => r.id === 'r_meal1').tripBody.startsWith('Työpäivä'), 'työjakso synkronoidaan palvelimelle työpäivän tekstin kanssa');
+await page.evaluate(() => { GT.Store.update(s => { s.trip = null; }); GT.render(); });
+ok(await page.isVisible('.trip-card .chip'), 'työjakson voi lopettaa');
 await shot('05-muistutukset');
 
 console.log('Torkku ja ilmoituksesta avaus');

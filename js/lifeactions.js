@@ -357,6 +357,25 @@
     },
     'report-shift': el => { VS.foodReportOffset = Math.min(0, VS.foodReportOffset + (+el.dataset.v)); render(); },
 
+    'trip-start': async el => {
+      const t = L.today();
+      const start = L.addDays(t, +(el.dataset.offset || 0));
+      const v = await ui.form({ title: 'Olen töissä', ok: 'Ota käyttöön', fields: [
+        { name: 'from', label: 'Alkaa', type: 'date', value: start, required: true, half: true },
+        { name: 'to', label: 'Päättyy', type: 'date', value: L.addDays(start, 6), required: true, half: true }],
+        extra: '<p class="muted sm">Työpäivinä ateriamuistutukset kertovat työpäivän ohjeen. Muut muistutukset ja tehtävät säilyvät ennallaan.</p>' });
+      if (!v || v.__action) return;
+      if (!v.from || !v.to || v.to < v.from) return ui.toast('Tarkista päivämäärät', 'error');
+      Store.update(s => { s.trip = { from: v.from, to: v.to }; });
+      ui.toast('Merkitty töihin. Hyvää työpäivää!');
+      sync(); render();
+    },
+    'trip-end': async () => {
+      if (!(await ui.confirm({ title: 'Lopetetaanko työjakso?', text: 'Muistutukset palaavat normaaliin ohjeeseen.', ok: 'Lopeta' }))) return;
+      Store.update(s => { s.trip = null; });
+      ui.toast('Työjakso lopetettu');
+      sync(); render();
+    },
     'rem-new': () => editReminder(null),
     'rem-edit': el => editReminder(el.dataset.id),
     'rem-reset': async () => {

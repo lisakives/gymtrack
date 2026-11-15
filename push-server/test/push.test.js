@@ -225,3 +225,14 @@ test('syötteen tarkistus', async () => {
   r = await call(env2, '/api/sync', { userId: 'u_' + 'a'.repeat(20), secret: 'b'.repeat(32) });
   assert.equal(r.status, 403);
 });
+
+test('olen töissä: ateriamuistutus käyttää työpäivän tekstiä vain työjakson aikana', () => {
+  const data = { tz: 'Europe/Helsinki', trip: { from: '2026-01-15', to: '2026-01-16' }, reminders: [
+    { id: 'm', time: '12:00', title: 'Ateria', body: 'Normaali', tripBody: 'Työpäivä: syö proteiinia' } ] };
+  const d1 = dueReminders(data, Date.UTC(2026, 0, 15, 9, 59), Date.UTC(2026, 0, 15, 10, 0));
+  assert.equal(d1.length, 1);
+  assert.equal(d1[0].rem.body, 'Työpäivä: syö proteiinia');
+  const data2 = { ...data, trip: { from: '2026-01-20', to: '2026-01-21' } };
+  const d2 = dueReminders(data2, Date.UTC(2026, 0, 15, 9, 59), Date.UTC(2026, 0, 15, 10, 0));
+  assert.equal(d2[0].rem.body, 'Normaali');
+});
