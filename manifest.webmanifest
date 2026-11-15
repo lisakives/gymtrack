@@ -1,9 +1,9 @@
 {
-  "name": "GymTrack – kuntosalipäiväkirja",
+  "name": "GymTrack – treeni, ruoka ja muistutukset",
   "short_name": "GymTrack",
-  "description": "Henkilökohtainen kuntosalipäiväkirja",
+  "description": "Kuntosalipäiväkirja, ruokaseuranta ja muistutukset",
   "lang": "fi",
-  "start_url": "./index.html#/home",
+  "start_url": "./index.html#/today",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
