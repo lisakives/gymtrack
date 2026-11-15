@@ -29,6 +29,11 @@
     download: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
     upload: '<path d="M12 20V9M7 14l5-5 5 5M5 4h14"/>',
     swap: '<path d="M7 7h11l-3-3M17 17H6l3 3"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+    bell: '<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
+    food: '<path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M16 21V3c-2 1.5-3 4-3 7v4h3"/>',
+    list: '<path d="M9 6h11M9 12h11M9 18h11"/><path d="m3.5 6 1 1 2-2M3.5 12l1 1 2-2M3.5 18l1 1 2-2"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
     fire: '<path d="M12 3s5 4.5 5 9.5a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5 0 2 1 3 2 3 0-3 1-6 1-8z"/>'
   };
   const icon = (name, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${P[name] || ''}</svg>`;
@@ -86,6 +91,9 @@
       if (fl.type === 'select') {
         return `<label class="field"><span>${fl.label}</span><select id="${id}" name="${fl.name}">${fl.options.map(o => `<option value="${esc(o.value)}" ${o.value === fl.value ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}</select></label>`;
       }
+      if (fl.type === 'checkbox') {
+        return `<label class="toggle"><span>${fl.label}</span><input type="checkbox" id="${id}" name="${fl.name}" ${fl.value ? 'checked' : ''}><i></i></label>`;
+      }
       if (fl.type === 'textarea') {
         return `<label class="field"><span>${fl.label}</span><textarea id="${id}" name="${fl.name}" rows="3" placeholder="${esc(fl.placeholder || '')}">${esc(fl.value || '')}</textarea></label>`;
       }
@@ -111,6 +119,7 @@
             let valid = true;
             fields.forEach(fl => {
               const input = formEl.elements[fl.name];
+              if (fl.type === 'checkbox') { out[fl.name] = input.checked; return; }
               let v = input.value.trim();
               if (fl.type === 'number') {
                 v = GT.model.num(v);

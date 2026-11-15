@@ -8,33 +8,51 @@
 
   Store.init(M.createDefault);
   if (M.ensurePlan(S())) Store.update();
+  // Elämäntapaosat (ruoka, muistutukset, tehtävät) lisätään vanhaan tallennukseen
+  if (GT.life.ensureLife(S())) Store.update();
+  Store.onChange(st => { GT.life.ensureLife(st); GT.push.scheduleSync(); });
 
   /* ================= REITITYS ================= */
   const routes = [
-    [/^$|^home$/, () => V.home(), 'home'],
-    [/^workouts$/, () => V.workouts(), 'workouts'],
-    [/^workout\/(.+)$/, m => V.workout(m[1]), 'workouts'],
-    [/^edit\/(.+)$/, m => V.edit(m[1]), 'workouts'],
-    [/^session$/, () => V.session(), 'workouts'],
-    [/^session\/(\d+)$/, m => V.sessionEx(m[1]), 'workouts'],
-    [/^summary\/(.+)$/, m => V.summary(m[1]), 'workouts'],
-    [/^history$/, () => V.history(), 'history'],
-    [/^history\/(.+)$/, m => V.historyDetail(m[1]), 'history'],
-    [/^progress$/, () => V.progress(), 'progress'],
-    [/^progress\/(.+)$/, m => V.progressDetail(m[1]), 'progress'],
-    [/^prs$/, () => V.prs(), 'progress'],
+    [/^$|^today(?:\?.*)?$/, () => V.today(), 'today'],
+    [/^food$/, () => V.food(), 'food'],
+    [/^food\/(\d{4}-\d{2}-\d{2})$/, m => V.food(m[1]), 'food'],
+    [/^food-report\/(week|month)$/, m => V.foodReport(m[1]), 'food'],
+    [/^food-favs$/, () => V.foodFavs(), 'food'],
+    [/^reminders$/, () => V.reminders(), 'reminders'],
+    [/^notifications$/, () => V.notifications(), 'reminders'],
+    [/^report(?:\/(.+))?$/, m => V.report(m[1]), 'today'],
+    [/^home$/, () => V.home(), 'gym'],
+    [/^workouts$/, () => V.workouts(), 'gym'],
+    [/^workout\/(.+)$/, m => V.workout(m[1]), 'gym'],
+    [/^edit\/(.+)$/, m => V.edit(m[1]), 'gym'],
+    [/^session$/, () => V.session(), 'gym'],
+    [/^session\/(\d+)$/, m => V.sessionEx(m[1]), 'gym'],
+    [/^summary\/(.+)$/, m => V.summary(m[1]), 'gym'],
+    [/^history$/, () => V.history(), 'gym'],
+    [/^history\/(.+)$/, m => V.historyDetail(m[1]), 'gym'],
+    [/^progress$/, () => V.progress(), 'body'],
+    [/^progress\/(.+)$/, m => V.progressDetail(m[1]), 'body'],
+    [/^prs$/, () => V.prs(), 'body'],
     [/^body$/, () => V.body(), 'body'],
     [/^body\/(.+)$/, m => V.bodyDetail(m[1]), 'body'],
-    [/^settings$/, () => V.settings(), 'home']
+    [/^settings$/, () => V.settings(), 'today']
   ];
 
   let lastRoute = null;
   // Upotetussa näkymässä (esim. Claude-artifakti) reititys pidetään muistissa.
-  let memPath = GT.EMBEDDED ? 'home' : null;
+  let memPath = GT.EMBEDDED ? 'today' : null;
   function currentPath() { return memPath !== null ? memPath : location.hash.replace(/^#\/?/, ''); }
 
   function render() {
-    const path = currentPath();
+    let path = currentPath();
+    // Ilmoituksesta avattu: #/today?r=<muistutus>
+    const deep = path.match(/^today\?(?:.*&)?r=([^&]+)/);
+    if (deep) {
+      path = 'today';
+      if (memPath !== null) memPath = 'today'; else history.replaceState(null, '', '#/today');
+      GT.openReminder(decodeURIComponent(deep[1]));
+    }
     let html = null, tab = 'home';
     for (const [re, fn, t] of routes) {
       const m = path.match(re);
@@ -536,6 +554,7 @@
     'metric': el => { VS.progressMetric = el.dataset.v; render(); },
     'period': el => { VS.period = el.dataset.v; render(); },
     'body-period': el => { VS.bodyPeriod = el.dataset.v; render(); },
+    'body-group': el => { VS.bodyGroup = el.dataset.v; render(); },
 
     /* --- mitat --- */
     'add-measure': el => addMeasure(el.dataset.type),
@@ -577,13 +596,15 @@
       Store.update(s => { s.settings.lastBackup = new Date().toISOString(); });
     },
     'reset-all': async () => {
-      const ok = await ui.confirm({ title: 'Tyhjennetäänkö kaikki tiedot?', text: 'Kaikki treenit, mittaukset ja ohjelmamuutokset poistetaan tältä laitteelta. Ota ensin varmuuskopio.', ok: 'Tyhjennä kaikki', danger: true });
+      const ok = await ui.confirm({ title: 'Tyhjennetäänkö kaikki tiedot?', text: 'Kaikki treenit, mittaukset, ruokakirjaukset, muistutukset ja ohjelmamuutokset poistetaan tältä laitteelta. Ota ensin varmuuskopio.', ok: 'Tyhjennä kaikki', danger: true });
       if (!ok) return;
       Store.reset(M.createDefault);
       ui.toast('Tiedot tyhjennetty');
       go('home');
     }
   };
+
+  Object.assign(actions, GT.extraActions || {});
 
   document.addEventListener('click', e => {
     const el = e.target.closest('[data-action]');
@@ -635,6 +656,8 @@
     }
   };
 
+  Object.assign(binds, GT.extraBinds || {});
+
   document.addEventListener('input', e => {
     const el = e.target;
     if (el.classList.contains('set-input')) {
@@ -664,10 +687,19 @@
   });
 
   /* ================= KÄYNNISTYS ================= */
-  if (memPath === null && !location.hash) location.replace('#/home');
+  if (memPath === null && !location.hash) location.replace('#/today');
   render();
 
-  if ('serviceWorker' in navigator && /^https?:/.test(location.protocol)) {
-    navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW-rekisteröinti epäonnistui', err));
+  // Kun sovellus palaa näkyviin (esim. seuraavana päivänä), päivän tiedot päivitetään
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') { GT.viewState.pushStatus = null; render(); GT.push.syncNow(); }
+  });
+
+  if ('serviceWorker' in navigator && /^https?:/.test(location.protocol) && !GT.EMBEDDED) {
+    navigator.serviceWorker.register('sw.js').then(() => GT.push.verify()).catch(err => console.warn('SW-rekisteröinti epäonnistui', err));
+    // Ilmoitusta napautettu sovelluksen ollessa auki
+    navigator.serviceWorker.addEventListener('message', e => {
+      if (e.data && e.data.type === 'open' && e.data.hash) { location.hash = e.data.hash; }
+    });
   }
 })();

@@ -1,7 +1,10 @@
-/* GymTrack – service worker: sovellus toimii myös ilman verkkoyhteyttä.
+/* GymTrack – service worker
+ *  - offline-tuki (verkko ensin, välimuisti varalla)
+ *  - push-ilmoitusten vastaanotto ja näyttäminen myös sovelluksen ollessa suljettuna
+ *  - ilmoituksen napautus avaa sovelluksen oikeaan kohtaan
  * Kun muutat sovelluksen tiedostoja, kasvata VERSION-numeroa, jotta
  * puhelin hakee uuden version. */
-const VERSION = 'gymtrack-v3';
+const VERSION = 'gymtrack-v4';
 const ASSETS = [
   './',
   './index.html',
@@ -12,6 +15,12 @@ const ASSETS = [
   './js/ui.js',
   './js/charts.js',
   './js/views.js',
+  './js/config.js',
+  './js/foods.js',
+  './js/life.js',
+  './js/push.js',
+  './js/lifeviews.js',
+  './js/lifeactions.js',
   './js/app.js',
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -24,7 +33,7 @@ self.addEventListener('install', e => {
 
 self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.filter(k => k !== VERSION).map(k => caches.delete(k))))
+    caches.keys().then(keys => Promise.all(keys.filter(k => k !== VERSION && k !== 'gt-push-config').map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -42,3 +51,67 @@ self.addEventListener('fetch', e => {
       .catch(() => caches.match(e.request, { ignoreSearch: true }).then(r => r || caches.match('./index.html')))
   );
 });
+
+/* ---------------- Push-ilmoitukset ---------------- */
+self.addEventListener('push', e => {
+  let data = {};
+  try { data = e.data ? e.data.json() : {}; } catch (err) { data = { title: 'GymTrack', body: e.data ? e.data.text() : '' }; }
+  const title = data.title || 'GymTrack';
+  const opts = {
+    body: data.body || '',
+    tag: data.tag || 'gymtrack',
+    renotify: true,
+    icon: './icons/icon-192.png',
+    badge: './icons/icon-192.png',
+    timestamp: Date.now(),
+    data: { url: data.url || './index.html#/today', rid: data.rid || null }
+  };
+  // Painikkeet näkyvät Androidilla ja tietokoneella; iPhone avaa sovelluksen, jossa valitaan Tehty/Torku.
+  if (data.rid) opts.actions = [{ action: 'done', title: 'Tehty' }, { action: 'snooze', title: 'Torkuta 15 min' }];
+  // iOS vaatii, että jokainen push näyttää ilmoituksen, muuten tilaus perutaan.
+  e.waitUntil(self.registration.showNotification(title, opts));
+});
+
+async function pushConfig() {
+  try {
+    const c = await caches.open('gt-push-config');
+    const r = await c.match('push-config');
+    return r ? await r.json() : null;
+  } catch (e) { return null; }
+}
+
+async function openApp(url) {
+  const target = new URL(url, self.registration.scope).href;
+  const hash = new URL(target).hash;
+  const list = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  for (const c of list) {
+    if (c.url.startsWith(self.registration.scope)) {
+      await c.focus();
+      c.postMessage({ type: 'open', hash });
+      return;
+    }
+  }
+  await self.clients.openWindow(target);
+}
+
+self.addEventListener('notificationclick', e => {
+  const n = e.notification;
+  const d = n.data || {};
+  n.close();
+  if (e.action === 'snooze' && d.rid) {
+    e.waitUntil(pushConfig().then(cfg => {
+      if (!cfg || !cfg.server) return openApp(d.url);
+      return fetch(cfg.server + '/api/snooze', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: cfg.userId, secret: cfg.secret, rid: d.rid, minutes: 15, title: n.title, body: n.body })
+      }).catch(() => openApp(d.url));
+    }));
+    return;
+  }
+  let url = d.url || './index.html#/today';
+  if (e.action === 'done' && d.rid) url = './index.html#/today?r=' + encodeURIComponent(d.rid);
+  e.waitUntil(openApp(url));
+});
+
+// Selain voi vaihtaa tilauksen (esim. avainten uusiminen). Sovellus päivittää sen palvelimelle seuraavalla avauksella.
+self.addEventListener('pushsubscriptionchange', () => { /* käsitellään sovelluksen käynnistyksessä (GT.push.verify) */ });

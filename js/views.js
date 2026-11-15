@@ -7,7 +7,7 @@
   const S = () => GT.Store.get();
 
   const views = {};
-  const ui = { historyEdit: null, progressMetric: 'weight', period: '3m', bodyPeriod: 'all' };
+  const ui = { historyEdit: null, progressMetric: 'weight', period: '3m', bodyPeriod: 'all', bodyGroup: 'all' };
   GT.viewState = ui;
 
   /* ---------- Yhteiset palat ---------- */
@@ -45,6 +45,8 @@
       <span class="ab-text"><b>${esc(a.workoutName)} käynnissä</b><span data-elapsed="${a.startedAt}">${F.clock(Date.now() - new Date(a.startedAt))}</span></span>
       <span class="ab-cta">Jatka ${icon('chevron')}</span></a>`;
   }
+
+  const gymTabs = on => `<div class="segmented mb"><a class="${on === 'home' ? 'on' : ''}" href="#/home">Treeni</a><a class="${on === 'workouts' ? 'on' : ''}" href="#/workouts">Ohjelma</a><a class="${on === 'history' ? 'on' : ''}" href="#/history">Historia</a></div>`;
 
   const empty = (title, text, btn = '') => `<div class="empty"><div class="empty-ic">${icon('dumbbell')}</div><h3>${title}</h3><p>${text}</p>${btn}</div>`;
 
@@ -110,6 +112,7 @@
         </div>
       </header>
       <main class="content">
+        ${gymTabs('home')}
         ${activeBanner()}
         ${!active && next ? `<section class="hero2">
           <div class="eyebrow">${eyebrow}</div>
@@ -166,6 +169,7 @@
     return `
       ${header('Treenit', { large: true })}
       <main class="content">
+        ${gymTabs('workouts')}
         ${activeBanner()}
         ${st.plan ? `<section class="card">
           <div class="row-between"><div class="card-label">Tavoite</div><button class="link sm" data-action="edit-goal">Muokkaa</button></div>
@@ -409,7 +413,7 @@
   views.history = () => {
     const st = S();
     const fin = M.finishedSessions(st);
-    if (!fin.length) return `${header('Historia', { large: true })}<main class="content">${activeBanner()}${empty('Ei vielä treenejä', 'Valmiit treenit tallentuvat tänne automaattisesti.', '<a class="btn btn-primary" href="#/workouts">Aloita treeni</a>')}</main>`;
+    if (!fin.length) return `${header('Historia', { large: true })}<main class="content">${gymTabs('history')}${activeBanner()}${empty('Ei vielä treenejä', 'Valmiit treenit tallentuvat tänne automaattisesti.', '<a class="btn btn-primary" href="#/workouts">Aloita treeni</a>')}</main>`;
     const groups = {};
     fin.forEach(s => {
       const d = new Date(s.startedAt);
@@ -419,6 +423,7 @@
     return `
       ${header('Historia', { large: true, sub: `${fin.length} treeniä` })}
       <main class="content">
+        ${gymTabs('history')}
         ${activeBanner()}
         ${Object.entries(groups).map(([month, list]) => `
           <div class="section-title">${month.charAt(0).toUpperCase() + month.slice(1)}</div>
@@ -490,7 +495,7 @@
 
   /* ================= KEHITYS ================= */
   function progressTabs(on) {
-    return `<div class="segmented mb"><a class="${on === 'ex' ? 'on' : ''}" href="#/progress">Liikkeet</a><a class="${on === 'pr' ? 'on' : ''}" href="#/prs">Ennätykset</a></div>`;
+    return `<div class="segmented mb"><a class="${on === 'body' ? 'on' : ''}" href="#/body">Kehon mitat</a><a class="${on === 'ex' ? 'on' : ''}" href="#/progress">Liikkeet</a><a class="${on === 'pr' ? 'on' : ''}" href="#/prs">Ennätykset</a></div>`;
   }
 
   views.progress = () => {
@@ -634,8 +639,9 @@
     const pts = ['biceps', 'chest', 'waist'];
     const pos = { biceps: { left: '22%', top: '30%' }, chest: { left: '50%', top: '28%' }, waist: { left: '50%', top: '43%' } };
     return `
-      ${header('Kehon mitat', { large: true, right: `<button class="icon-btn" data-action="add-measure-all" aria-label="Lisää mittaus">${icon('plus')}</button>` })}
+      ${header('Kehitys', { large: true, right: `<button class="icon-btn" data-action="add-measure-all" aria-label="Lisää mittaus">${icon('plus')}</button>` })}
       <main class="content">
+        ${progressTabs('body')}
         <section class="card figure-card">
           <div class="figure-wrap">
             ${FIGURE}
@@ -675,11 +681,14 @@
     const m = measureSummary(st, type);
     const from = periodStart(ui.bodyPeriod);
     const shown = from ? m.list.filter(x => new Date(x.date) >= from) : m.list;
-    const pts = shown.map(x => ({ t: x.date + 'T12:00:00', y: x.value }));
+    const grouped = GT.groupMeasures ? GT.groupMeasures(shown, ui.bodyGroup) : null;
+    const pts = grouped ? grouped.map(x => ({ t: x.key + 'T12:00:00', y: x.value, label: x.label })) : shown.map(x => ({ t: x.date + 'T12:00:00', y: x.value }));
+    const groupTabs = `<div class="segmented">${[['all', 'Mittaukset'], ['week', 'Viikoittain'], ['month', 'Kuukausittain']].map(([k, l]) => `<button class="${(ui.bodyGroup || 'all') === k ? 'on' : ''}" data-action="body-group" data-v="${k}">${l}</button>`).join('')}</div>`;
     const firstAll = m.list[m.list.length - 1];
     return `
       ${header(meta.label, { back: 'body', sub: 'Kehon mitat', right: `<button class="icon-btn" data-action="add-measure" data-type="${type}" aria-label="Lisää">${icon('plus')}</button>` })}
       <main class="content">
+        ${groupTabs}
         <section class="card chart-card">
           <div class="row-between">
             <div><div class="big">${m.cur ? F.num(m.cur.value) : '–'}<small> ${meta.unit}</small></div>
@@ -690,6 +699,11 @@
           ${periodChips(ui.bodyPeriod, 'body-period')}
         </section>
         <button class="btn btn-primary btn-block" data-action="add-measure" data-type="${type}">${icon('plus')} Lisää mittaus</button>
+        ${grouped ? `<div class="section-title">${ui.bodyGroup === 'week' ? 'Viikkokeskiarvot' : 'Kuukausikeskiarvot'}</div>
+        <ul class="list card">${grouped.map((x, i) => {
+          const p = grouped[i + 1];
+          return `<li class="list-row"><div class="grow"><b>${F.num(x.value)} ${meta.unit}</b><div class="muted sm">${esc(x.label)} · ${x.n} mittaus${x.n > 1 ? 'ta' : ''}</div></div>${deltaHtml(type, p ? Math.round((x.value - p.value) * 10) / 10 : null)}</li>`;
+        }).join('') || '<li class="list-row muted">Ei mittauksia valitulla jaksolla.</li>'}</ul>` : ''}
         <div class="section-title">Historia</div>
         ${m.list.length ? `<ul class="list card">${m.list.map((x, i) => {
           const p = m.list[i + 1];
@@ -709,8 +723,14 @@
     let size = 0;
     try { size = (localStorage.getItem('gymtrack.v1') || '').length; } catch (e) { /* */ }
     return `
-      ${header('Asetukset', { back: 'home' })}
+      ${header('Asetukset', { back: 'today' })}
       <main class="content">
+        <div class="section-title">Elämäntavat</div>
+        <section class="card">
+          <a class="list-row link-row" href="#/notifications"><div class="grow"><b>Puhelimen ilmoitukset</b><div class="muted sm">${st.push && st.push.subscribed ? 'Käytössä' : 'Ei käytössä'}</div></div>${icon('chevron', 'muted')}</a>
+          <a class="list-row link-row" href="#/reminders"><div class="grow"><b>Muistutukset ja tehtävät</b><div class="muted sm">${(st.reminders || []).length} muistutusta</div></div>${icon('chevron', 'muted')}</a>
+          <button class="list-row link-row" data-action="food-goals"><div class="grow"><b>Ruokatavoitteet</b><div class="muted sm">${st.food ? `${st.food.goals.kcal} kcal · proteiini ${st.food.goals.protein} g` : ''}</div></div>${icon('chevron', 'muted')}</button>
+        </section>
         <div class="section-title">Lepoajastin</div>
         <section class="card">
           <div class="card-label">Oletuslepo</div>
@@ -723,14 +743,14 @@
           <p class="muted sm">Tiedot tallentuvat automaattisesti tähän laitteeseen. Ota säännöllisesti varmuuskopio, jotta tiedot säilyvät myös laitteen vaihtuessa.</p>
           <button class="btn btn-soft btn-block" data-action="export">${icon('download')} Vie tiedot (JSON)</button>
           <label class="btn btn-soft btn-block file-btn">${icon('upload')} Palauta varmuuskopiosta<input type="file" accept="application/json,.json" data-bind="import-file"></label>
-          <p class="muted sm center">${st.sessions.filter(x => x.endedAt).length} treeniä · ${st.measurements.length} mittausta · ${(size / 1024).toFixed(1)} kt</p>
+          <p class="muted sm center">${st.sessions.filter(x => x.endedAt).length} treeniä · ${st.measurements.length} mittausta · ${st.food ? st.food.entries.length : 0} ruokakirjausta · ${(size / 1024).toFixed(1)} kt</p>
         </section>
         <div class="section-title">Tiedot</div>
         <section class="card">
           <button class="btn btn-danger-ghost btn-block" data-action="reset-all">${icon('trash')} Tyhjennä kaikki tiedot</button>
         </section>
         ${GT.cloudStatus ? `<p class="muted sm center mt">${esc(GT.cloudStatus)}</p>` : ''}
-        <p class="muted sm center mt">GymTrack 1.0${GT.EMBEDDED ? '' : ' · toimii myös ilman verkkoyhteyttä'}</p>
+        <p class="muted sm center mt">GymTrack 2.0${GT.EMBEDDED ? '' : ' · toimii myös ilman verkkoyhteyttä'}</p>
       </main>`;
   };
 

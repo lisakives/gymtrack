@@ -1,0 +1,17 @@
+# GymTrack push-palvelin. GitHub Actions -työnkulku (.github/workflows/deploy-push.yml)
+# täyttää database_id:n automaattisesti, joten tätä ei tarvitse muokata käsin.
+name = "gymtrack-push"
+main = "src/index.js"
+compatibility_date = "2025-06-01"
+workers_dev = true
+
+[triggers]
+crons = ["* * * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "gymtrack-push"
+database_id = "REPLACE_WITH_D1_ID"
+
+[vars]
+VAPID_SUBJECT = "https://github.com/lisakives/gymtrack"

@@ -114,6 +114,41 @@
     });
   }
 
+
+  /**
+   * Pylväsgraafi: items [{ label, v, hint? }], opts { goal, unit, height }
+   * Tavoiteviiva piirretään katkoviivana.
+   */
+  function bars(items, opts = {}) {
+    const h = opts.height || 150;
+    const W = opts.width || chartWidth();
+    if (!items.length) return `<div class="chart-empty">Ei dataa</div>`;
+    const padT = 16, padB = 22;
+    const max = Math.max(opts.goal || 0, ...items.map(i => i.v || 0)) * 1.1 || 1;
+    const bw = (W - 8) / items.length;
+    const sy = v => padT + (1 - v / max) * (h - padT - padB);
+    const rects = items.map((it, i) => {
+      const x = 4 + i * bw + bw * 0.18, w = Math.max(2, bw * 0.64);
+      const y = sy(it.v || 0), hh = (h - padB) - y;
+      const over = opts.goal && it.v > opts.goal * 1.1;
+      return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(0, hh).toFixed(1)}" rx="3" class="${it.v ? (over ? 'c-bar over' : 'c-bar') : 'c-bar empty'}"><title>${it.hint || ''}</title></rect>` +
+        (items.length <= 14 ? `<text x="${(x + w / 2).toFixed(1)}" y="${h - 6}" class="c-lbl" text-anchor="middle">${it.label}</text>` : '');
+    }).join('');
+    const goal = opts.goal ? `<line x1="4" x2="${W - 4}" y1="${sy(opts.goal).toFixed(1)}" y2="${sy(opts.goal).toFixed(1)}" class="c-goal"/>` : '';
+    return `<div class="chart bars"><svg viewBox="0 0 ${W} ${h}" class="chart-svg" role="img" aria-label="Pylväsgraafi">${rects}${goal}</svg>
+      ${items.length > 14 ? `<div class="chart-axis"><span>${items[0].label}</span><span>${items[items.length - 1].label}</span></div>` : ''}</div>`;
+  }
+
+  /** Edistymisrengas: arvo 0–1 (yli 1 = ylitys) */
+  function ring(frac, opts = {}) {
+    const size = opts.size || 76, sw = opts.stroke || 7, r = (size - sw) / 2 - 1, c = 2 * Math.PI * r;
+    const f = Math.max(0, Math.min(1, frac || 0));
+    return `<svg class="ring ${opts.cls || ''}" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" aria-hidden="true">
+      <circle cx="${size / 2}" cy="${size / 2}" r="${r}" class="ring-bg" style="stroke-width:${sw}"/>
+      ${f > 0 ? `<circle cx="${size / 2}" cy="${size / 2}" r="${r}" class="ring-fg ${frac > 1.1 ? 'over' : ''}" style="stroke-width:${sw}" stroke-dasharray="${(c * f).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 ${size / 2} ${size / 2})"/>` : ''}
+    </svg>`;
+  }
+
   window.GT = window.GT || {};
-  GT.charts = { line, spark, bind };
+  GT.charts = { line, spark, bind, bars, ring };
 })();
