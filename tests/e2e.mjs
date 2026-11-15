@@ -100,6 +100,7 @@ ok(todays[0].kcal === 300 && todays[0].p === 60, 'kanan ravintoarvot oikein (300
 ok(!!st.tasks.done[today].r_meal1, '1. aterian kirjaus merkitsi ateriamuistutuksen tehdyksi');
 
 await go('#/food');
+await page.waitForTimeout(900); // lukujen laskuri-animaatio
 ok((await page.textContent('.food-total .big')).includes('463'), 'päivän kalorit yhteensä (300 + 163 = 463)');
 // suosikiksi
 await page.click('.food-list li:first-child');

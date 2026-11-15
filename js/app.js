@@ -60,13 +60,14 @@
     }
     if (html === null) html = V.notFound();
     const changed = path !== lastRoute;
-    const scroll = window.scrollY;
-    viewEl.innerHTML = html;
-    if (changed) {
+    if (changed || !viewEl.firstChild) {
+      viewEl.innerHTML = html;
       viewEl.classList.remove('enter'); void viewEl.offsetWidth; viewEl.classList.add('enter');
       window.scrollTo(0, 0);
+      GT.motion.countUp(viewEl);
     } else {
-      window.scrollTo(0, scroll);
+      // Sama näkymä: päivitetään paikallaan, jolloin siirtymät animoituvat eikä näkymä välähdä
+      GT.motion.morph(viewEl, html);
     }
     lastRoute = path;
     document.querySelectorAll('.nav a').forEach(a => a.classList.toggle('on', a.dataset.tab === tab));
