@@ -19,6 +19,7 @@ const ASSETS = [
   './js/config.js',
   './js/foods.js',
   './js/life.js',
+  './js/openfood.js',
   './js/push.js',
   './js/lifeviews.js',
   './js/lifeactions.js',

@@ -40,6 +40,7 @@
         <h3 class="sheet-title">Lisää ruoka</h3>
         <div class="segmented meal-pick">${L.MEALS.map(m => `<button type="button" class="${m.key === meal ? 'on' : ''}" data-meal="${m.key}">${m.label}</button>`).join('')}</div>
         <div class="search-wrap">${icon('search')}<input class="search" type="search" placeholder="Hae ruokaa tai suosikkia…" autocomplete="off" enterkeyhint="search"></div>
+        <div class="barcode-row"><input class="code" inputmode="numeric" placeholder="Viivakoodi (numerot)" autocomplete="off"><button type="button" class="btn btn-soft" data-code>Hae</button></div>
         <div class="food-pane"></div>
         <div class="sheet-actions">
           <button type="button" class="btn btn-soft btn-block" data-x="custom">${icon('edit')} Oma ruoka (syötä arvot)</button>
@@ -48,6 +49,7 @@
       onMount(el, close) {
         const pane = el.querySelector('.food-pane');
         const input = el.querySelector('.search');
+        let offRes = [], offLoading = false, offErr = false, offT = null, offSeq = 0;
         const row = (x, i, kind) => {
           const it = kind === 'fav' ? { name: x.name, ...L.totals(x.items) } : itemFromResult(x);
           const sub = kind === 'fav' ? `${x.items.length > 1 ? x.items.length + ' ruokaa · ' : ''}${kcal(it.kcal)} kcal · P ${F.num(it.p, 0)} g`
@@ -58,12 +60,16 @@
         function list() {
           results = L.searchFoods(S(), q);
           const sec = (title, arr, kind) => arr.length ? `<div class="fr-title">${title}</div><ul class="fr-list">${arr.map((x, i) => row(x, i, kind)).join('')}</ul>` : '';
-          const html = sec('Suosikit', results.favs, 'fav') + sec(q ? 'Aiemmin syödyt' : 'Viimeksi lisätyt', results.recent, 'recent') + sec('Ruokatietokanta', results.db.slice(0, 30), 'db');
+          let off = '';
+          if (offLoading) off = `<div class="fr-title">Open Food Facts</div><p class="muted sm">Haetaan verkosta…</p>`;
+          else if (offErr) off = `<div class="fr-title">Open Food Facts</div><p class="muted sm">Verkkohaku ei onnistunut. Tarkista yhteys.</p>`;
+          else if (offRes.length) off = sec('Open Food Facts', offRes, 'off') + `<p class="muted sm src">Tiedot: Open Food Facts (ODbL)</p>`;
+          const html = sec('Suosikit', results.favs, 'fav') + sec(q ? 'Aiemmin syödyt' : 'Viimeksi lisätyt', results.recent, 'recent') + sec('Ruokatietokanta', results.db.slice(0, 30), 'db') + off;
           pane.innerHTML = html || `<p class="muted sm center">${q ? 'Ei osumia. Lisää ruoka omilla arvoilla alta.' : 'Hae ruokaa kirjoittamalla nimi, esim. "kana" tai "rahka".'}</p>`;
         }
         function get(ref) {
           const [kind, i] = ref.split(':');
-          const arr = kind === 'fav' ? results.favs : kind === 'recent' ? results.recent : results.db;
+          const arr = kind === 'fav' ? results.favs : kind === 'recent' ? results.recent : kind === 'off' ? offRes : results.db;
           return { kind, x: arr[+i] };
         }
         function amountView(x) {
@@ -101,7 +107,33 @@
           meal = b.dataset.meal;
           el.querySelectorAll('.meal-pick button').forEach(x => x.classList.toggle('on', x === b));
         });
-        input.addEventListener('input', () => { q = input.value; list(); });
+        // Verkkohaku (Open Food Facts) käynnistyy, kun hakusanassa on vähintään 3 merkkiä. Viive estää turhat pyynnöt.
+        function scheduleOff() {
+          clearTimeout(offT);
+          const mine = ++offSeq;
+          if (q.trim().length < 3) { offRes = []; offLoading = false; offErr = false; return; }
+          offLoading = true; offErr = false;
+          offT = setTimeout(async () => {
+            try {
+              const r = await GT.OFF.search(q);
+              if (mine !== offSeq) return;
+              offRes = r; offErr = false;
+            } catch (err) {
+              if (mine !== offSeq) return;
+              offRes = []; offErr = true;
+            }
+            offLoading = false; list();
+          }, 450);
+        }
+        input.addEventListener('input', () => { q = input.value; scheduleOff(); list(); });
+        el.querySelector('[data-code]').addEventListener('click', async () => {
+          const code = el.querySelector('.code').value;
+          try {
+            const it = await GT.OFF.byCode(code);
+            if (!it) return ui.toast('Tuotetta ei löytynyt tällä viivakoodilla', 'error');
+            amountView(it);
+          } catch (err) { ui.toast('Verkkohaku ei onnistunut', 'error'); }
+        });
         pane.addEventListener('click', e => {
           const quick = e.target.closest('[data-quick]');
           const pick = e.target.closest('[data-pick]');

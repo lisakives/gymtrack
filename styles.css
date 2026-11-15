@@ -908,3 +908,7 @@ body { background: var(--bg); }
 .pop-item svg { width: 18px; height: 18px; color: var(--muted); flex: none; }
 .pop-item:active { background: var(--surface-3); }
 .pop-item.danger, .pop-item.danger svg { color: var(--bad); }
+.barcode-row { display: flex; gap: 8px; margin-top: 10px; }
+.barcode-row .code { flex: 1; min-width: 0; height: 44px; border-radius: 13px; border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--text); font-size: 16px; padding: 0 12px; outline: none; -webkit-appearance: none; }
+.barcode-row .btn { height: 44px; padding: 0 16px; }
+.food-sheet .src { margin: 6px 2px 0; font-size: 11.5px; }
