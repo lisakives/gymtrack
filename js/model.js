@@ -214,6 +214,46 @@
     return res;
   }
 
+  /* ---------- Progressiivinen ylikuormitus ---------- */
+  const round2 = v => Math.round(v * 100) / 100;
+  /** Painonlisäys: pienemmillä painoilla pienempi askel (noin 2–5 %). */
+  function weightStep(w) { return w >= 100 ? 5 : w >= 30 ? 2.5 : w >= 10 ? 1 : 0.5; }
+
+  /**
+   * Ehdotus seuraavaan kertaan liikkeen historian perusteella (uusin ensin).
+   * - increase: viime kerralla kaikki tavoitesarjat toistoalueen ylärajalla → nosta painoa.
+   * - stall: sama paino kolmella viime kerralla ilman toistojen kasvua → kevennä ~10 %.
+   * - hold: muuten pidä paino ja lisää toistoja.
+   */
+  function progression(target, hist) {
+    const last = hist && hist[0];
+    if (!target || !last) return null;
+    const sets = last.sets.filter(setLogged);
+    const weightOf = s => num(s.weight) || 0;
+    const top = sets.length ? Math.max(...sets.map(weightOf)) : 0;
+    if (!(top > 0)) return null; // kehonpainoliikkeet: ei painoehdotusta
+    const repMax = num(target.repMax), repMin = num(target.repMin);
+    if (sets.length >= target.sets && sets.every(s => num(s.reps) >= repMax)) {
+      const step = weightStep(top);
+      return { type: 'increase', step, from: top, to: round2(top + step), reps: repMin,
+        text: `Viime kerralla kaikki sarjat ylärajalla (${repMax}). Nosta painoa ${fmtKg(step)} → ${fmtKg(top + step)} ja aloita ${repMin} toistosta.` };
+    }
+    const recent = hist.slice(0, 3).map(h => {
+      const ls = h.sets.filter(setLogged);
+      return { top: Math.max(0, ...ls.map(weightOf)), reps: ls.reduce((n, s) => n + (num(s.reps) || 0), 0) };
+    });
+    if (recent.length === 3 && recent.every(r => r.top === top) && recent[0].reps <= recent[1].reps && recent[1].reps <= recent[2].reps) {
+      const inc = top >= 30 ? 2.5 : 0.5;
+      const to = round2(Math.round(top * 0.9 / inc) * inc);
+      return { type: 'stall', from: top, to,
+        text: `Paino ${fmtKg(top)} on pysynyt samana kolme kertaa ilman toistojen kasvua. Kokeile kevennystä (${fmtKg(to)}) ja nouse takaisin.` };
+    }
+    const missing = sets.reduce((n, s) => n + Math.max(0, repMax - (num(s.reps) || 0)), 0)
+      + Math.max(0, target.sets - sets.length) * repMax;
+    return { type: 'hold', from: top, to: top, missing,
+      text: `Pidä paino ${fmtKg(top)} ja tavoittele ${repMax} toistoa kaikissa sarjoissa (vielä ${missing} toistoa).` };
+  }
+
   /** Kaikkien liikkeiden ennätykset (Ennätykset-näkymään). */
   function allPRs(state) {
     const keys = new Map();
@@ -333,7 +373,7 @@
   GT.model = {
     uid, createDefault, MEASURES, DAYS, ensurePlan, defaultPlan, nextScheduled, todayIndex, num, setLogged, exKey, exLabel, e1rm,
     finishedSessions, activeSession, sessionStats, exerciseHistory, previousFor,
-    computePRs, checkSetPR, allPRs, recentPRs, nextWorkout, startOfWeek,
+    computePRs, checkSetPR, progression, weightStep, allPRs, recentPRs, nextWorkout, startOfWeek,
     measurementsOf, trackableExercises, labelForKey
   };
   GT.fmt = { kg: fmtKg, num: fmtNum, date: fmtDate, dateLong: fmtDateLong, duration: fmtDuration, clock: fmtClock, relDay, todayISO, setsSummary };

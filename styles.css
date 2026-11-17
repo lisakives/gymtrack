@@ -435,6 +435,8 @@ body.in-session .view { padding-bottom: calc(var(--nav-h) + var(--safe-b) + 110p
 .guide-card summary::after { content: ' ›'; }
 .guide-card[open] summary { margin-bottom: 10px; }
 .hint { margin-top: 12px; font-size: 13.5px; color: var(--good); }
+.hint.prog-hold, .hint.prog-stall { color: var(--muted); }
+.prog-up { color: var(--good); font-weight: 600; }
 
 /* =========================================================
    v2 – urheilullisempi ja selkeämpi ilme
