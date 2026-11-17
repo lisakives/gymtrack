@@ -329,6 +329,51 @@ ok(st.food.entries.filter(e => e.date === today).length >= 4 && st.sessions.leng
 const sw = await page.evaluate(async () => { const r = await navigator.serviceWorker.getRegistration(); return r && r.active ? r.active.scriptURL : null; });
 ok(sw && sw.endsWith('sw.js'), 'service worker on aktiivinen');
 
+console.log('Painonnostoehdotukset');
+const prog = await page.evaluate(() => {
+  const M = GT.model, T = { sets: 3, repMin: 8, repMax: 12 };
+  const h = (w, reps, d) => ({ session: { startedAt: d }, sets: reps.map(r => ({ weight: String(w), reps: String(r), done: true })) });
+  return {
+    up: M.progression(T, [h(62.5, [12, 12, 12], '2026-11-12')]),
+    upLight: M.progression(T, [h(12, [12, 13, 12], '2026-11-12')]),
+    upHeavy: M.progression(T, [h(120, [12, 12, 12], '2026-11-12')]),
+    tooFew: M.progression(T, [h(60, [12, 12], '2026-11-12')]),
+    hold: M.progression(T, [h(60, [12, 11, 10], '2026-11-12')]),
+    stall: M.progression(T, [h(60, [10, 9, 8], '2026-11-12'), h(60, [10, 9, 9], '2026-11-10'), h(60, [10, 10, 9], '2026-11-08')]),
+    bodyweight: M.progression(T, [h(0, [12, 12, 12], '2026-11-12')]),
+    noTarget: M.progression(null, [h(60, [12, 12, 12], '2026-11-12')])
+  };
+});
+ok(prog.up.type === 'increase' && prog.up.to === 65 && prog.up.reps === 8, 'kaikki sarjat ylärajalla → nosta 62,5 → 65 kg, toistot alarajalta');
+ok(prog.upLight.to === 13 && prog.upHeavy.to === 125, 'askel riippuu painosta (12 → 13 kg, 120 → 125 kg)');
+ok(prog.tooFew.type === 'hold' && prog.hold.type === 'hold' && prog.hold.missing === 3, 'liian vähän sarjoja tai toistoja → pidä paino (vielä 3 toistoa)');
+ok(prog.stall.type === 'stall' && prog.stall.to === 55, 'jumi kolmella kerralla → kevennysehdotus 55 kg');
+ok(prog.bodyweight === null && prog.noTarget === null, 'ei painoehdotusta kehonpainolla tai ilman tavoitetta');
+
+// Viime treeni (uusin): 3 × 12 painolla 62,5 → seuraavalla kerralla ehdotus 65 kg × 8
+await page.evaluate(() => GT.Store.update(s => {
+  const t = new Date().toISOString();
+  s.sessions.push({ id: 's_prog', workoutId: 'w_pull', workoutName: 'PULL', startedAt: t, endedAt: t, notes: '', prs: [],
+    exercises: [{ exerciseId: 'ex_row', name: 'Alataljasoutu', target: { sets: 3, repMin: 8, repMax: 12 },
+      sets: [0, 1, 2].map(() => ({ weight: '62.5', reps: '12', done: true })) }] });
+}));
+await go('#/home');
+await page.click('button[data-action="start-workout"]');
+await page.waitForTimeout(300);
+ok((await page.textContent('.ex-list')).includes('↑ 65 kg'), 'treenin liikelistassa näkyy nostoehdotus');
+await page.click('a[href="#/session/0"]');
+await page.waitForTimeout(200);
+ok(await page.getAttribute('.set-input[data-field="weight"][data-i="0"]', 'placeholder') === '65', 'painokentän ehdotus on 65');
+ok(await page.getAttribute('.set-input[data-field="reps"][data-i="0"]', 'placeholder') === '8', 'toistokentän ehdotus on alaraja 8');
+ok((await page.textContent('.prev-card .hint')).includes('Nosta painoa 2,5 kg'), 'vinkki kertoo nostosta');
+await page.click('.set-check[data-i="0"]');
+await page.waitForTimeout(200);
+await page.click('button[data-action="rest-stop"]').catch(() => {});
+st = await state();
+const logged = st.sessions.find(s => s.id === st.activeSessionId).exercises[0].sets[0];
+ok(logged.weight === '65' && logged.reps === '8' && logged.done, 'tyhjä sarja kirjautuu ehdotuksella (65 kg × 8)');
+await shot('09-painonnosto');
+
 ok(errors.length === 0, 'ei JavaScript-virheitä' + (errors.length ? ': ' + errors.join(' | ') : ''));
 await browser.close();
 console.log(`\n${passes} läpi, ${failures} epäonnistui`);

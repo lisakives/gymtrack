@@ -427,8 +427,8 @@
       const idx = +el.dataset.ex, i = +el.dataset.i;
       const st = S(); const a = M.activeSession(st); const e = a.exercises[idx]; const s = e.sets[i];
       if (s.done) { Store.update(() => { s.done = false; }); return render(); }
-      const prev = M.previousFor(st, M.exKey(e), a.id);
-      const sug = GT.suggestion(e, i, prev);
+      const hist = M.exerciseHistory(st, M.exKey(e), a.id);
+      const sug = GT.suggestion(e, i, hist[0], M.progression(e.target, hist));
       const weight = s.weight !== '' ? s.weight : sug.w;
       const reps = s.reps !== '' ? s.reps : sug.r;
       if (!(M.num(reps) > 0)) {

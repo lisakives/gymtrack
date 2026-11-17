@@ -278,14 +278,16 @@
         <div class="muted sm progress-label">${done} / ${total} sarjaa tehty</div>
         <ul class="ex-list">
           ${a.exercises.map((e, i) => {
-            const prev = M.previousFor(st, M.exKey(e), a.id);
+            const hist = M.exerciseHistory(st, M.exKey(e), a.id);
+            const prev = hist[0];
+            const prog = M.progression(e.target, hist);
             const d = e.sets.filter(M.setLogged).length;
             const complete = d >= e.sets.length && e.sets.length;
             return `<li><a class="card card-link ex-card ${complete ? 'complete' : ''}" href="#/session/${i}">
               <div class="ex-ring ${complete ? 'on' : ''}">${complete ? icon('check') : `${d}/${e.sets.length}`}</div>
               <div class="grow">
                 <b>${esc(M.exLabel(e))}</b>
-                <div class="muted sm">${e.target ? `${e.target.sets} × ${e.target.repMin}–${e.target.repMax}` : `${e.sets.length} sarjaa`}${prev ? ' · ed. ' + esc(F.setsSummary(prev.sets)) : ''}</div>
+                <div class="muted sm">${e.target ? `${e.target.sets} × ${e.target.repMin}–${e.target.repMax}` : `${e.sets.length} sarjaa`}${prev ? ' · ed. ' + esc(F.setsSummary(prev.sets)) : ''}${prog && prog.type === 'increase' ? ` · <span class="prog-up">↑ ${esc(F.kg(prog.to))}</span>` : ''}</div>
               </div>${icon('chevron', 'muted')}</a></li>`;
           }).join('')}
         </ul>
@@ -299,10 +301,15 @@
       </main>`;
   };
 
-  /** Ehdotukset sarjan kenttiin (placeholder) */
-  function suggestion(e, i, prev) {
+  /** Ehdotukset sarjan kenttiin (placeholder). prog = M.progression(...) */
+  function suggestion(e, i, prev, prog) {
     const ps = prev ? (prev.sets[i] || prev.sets[prev.sets.length - 1]) : null;
     let w = ps ? ps.weight : '', r = ps ? ps.reps : '';
+    // Painonnosto: edellisen kerran paino + askel, toistot alarajalta
+    if (ps && prog && prog.type === 'increase' && M.num(ps.weight) > 0) {
+      w = String(Math.round((M.num(ps.weight) + prog.step) * 100) / 100);
+      r = prog.reps;
+    }
     for (let j = i - 1; j >= 0; j--) {
       const s = e.sets[j];
       if (M.num(s.weight) !== null) { w = s.weight; break; }
@@ -323,9 +330,10 @@
     const hist = M.exerciseHistory(st, key, a.id);
     const prev = hist[0];
     const pr = M.computePRs(hist);
+    const prog = M.progression(e.target, hist);
 
     const rows = e.sets.map((s, i) => {
-      const sug = suggestion(e, i, prev);
+      const sug = suggestion(e, i, prev, prog);
       const ps = prev && prev.sets[i];
       return `<div class="set-row ${s.done ? 'done' : ''}" data-i="${i}">
         <div class="set-no">${i + 1}</div>
@@ -349,8 +357,7 @@
           <div class="row-between"><div class="card-label">Edellinen kerta</div><div class="muted sm">${prev ? F.relDay(prev.session.startedAt) : ''}</div></div>
           ${prev ? `<div class="prev-sets">${prev.sets.map((s, i) => `<div><span class="muted">${i + 1}</span><b>${F.num(s.weight)} kg</b><span>× ${F.num(s.reps, 0)}</span></div>`).join('')}</div>`
             : `<p class="muted sm">Ei aiempia tuloksia. Tämä kerta on lähtötaso.</p>`}
-          ${prev && e.target && prev.sets.length >= e.target.sets && prev.sets.every(s => M.num(s.reps) >= e.target.repMax)
-            ? `<div class="hint">${icon('up', 'inline')} Viime kerralla kaikki sarjat ylärajalla (${e.target.repMax}). Lisää hieman painoa.</div>` : ''}
+          ${prog ? `<div class="hint prog-${prog.type}">${prog.type === 'increase' ? icon('up', 'inline') + ' ' : ''}${esc(prog.text)}</div>` : ''}
           ${pr.maxWeight ? `<div class="prev-best">${icon('trophy', 'inline')} Paras: ${F.kg(pr.maxWeight.weight)} × ${pr.maxWeight.reps}${pr.bestE1rm ? ` · arv. 1RM ${F.kg(pr.bestE1rm.value)}` : ''}</div>` : ''}
         </section>
 
