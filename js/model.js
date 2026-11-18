@@ -4,6 +4,10 @@
 
   const uid = (p = 'id') => p + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
+  /* Liikkeen väline */
+  const EQUIPMENT = { dumbbell: 'Käsipainot', bodyweight: 'Kehonpaino', barbell: 'Tanko' };
+  const equipLabel = e => (e && EQUIPMENT[e.equipment]) || '';
+
   function ex(name, sets, repMin, repMax, variants) {
     const e = { id: uid('ex'), name, sets, repMin, repMax };
     if (variants) e.variants = variants;
@@ -331,7 +335,7 @@
 
   window.GT = window.GT || {};
   GT.model = {
-    uid, createDefault, MEASURES, DAYS, ensurePlan, defaultPlan, nextScheduled, todayIndex, num, setLogged, exKey, exLabel, e1rm,
+    uid, createDefault, MEASURES, DAYS, ensurePlan, defaultPlan, nextScheduled, todayIndex, num, setLogged, exKey, exLabel, e1rm, EQUIPMENT, equipLabel,
     finishedSessions, activeSession, sessionStats, exerciseHistory, previousFor,
     computePRs, checkSetPR, allPRs, recentPRs, nextWorkout, startOfWeek,
     measurementsOf, trackableExercises, labelForKey
