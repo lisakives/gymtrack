@@ -150,6 +150,12 @@ export async function handleCloud(path, body, env, auth) {
     return { ok: true, username };
   }
 
+  if (path === '/api/account/available') {
+    let username;
+    try { username = cleanUsername(body.username); } catch (e) { return { ok: true, available: false, reason: e.message }; }
+    return { ok: true, available: !(await getAccount(env, username)), username };
+  }
+
   if (path === '/api/account/login') {
     const username = cleanUsername(body.username);
     const acc = await verify(env, username, cleanKey(body.pwKey), 'pw');
