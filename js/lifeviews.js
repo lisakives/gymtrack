@@ -103,6 +103,7 @@
       </div></header>
       <main class="content">
         ${pushBanner()}
+        ${GT.accountView ? GT.accountView.banner() : ''}
         ${st.trip && st.trip.to >= t ? tripCard() : ''}
         ${active ? `<a class="active-banner" href="#/session"><span class="pulse"></span><span class="ab-text"><b>${esc(active.workoutName)} käynnissä</b><span data-elapsed="${active.startedAt}">${F.clock(Date.now() - new Date(active.startedAt))}</span></span><span class="ab-cta">Jatka ${icon('chevron')}</span></a>` : ''}
 

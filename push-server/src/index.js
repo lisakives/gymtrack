@@ -12,6 +12,7 @@
  * VAPID-avaimet luodaan automaattisesti ensimmäisellä käyttökerralla ja
  * tallennetaan tietokantaan.
  */
+import { handleCloud } from './cloud.js';
 
 const enc = new TextEncoder();
 
@@ -330,6 +331,9 @@ async function handle(request, env) {
   let body;
   try { body = await request.json(); } catch (e) { return json({ error: 'Virheellinen JSON' }, 400); }
   await ensureSchema(env);
+
+  const cloud = await handleCloud(path, body, env, auth);
+  if (cloud) return json(cloud, cloud.status || 200);
 
   if (path === '/api/subscribe') {
     const user = await auth(env, body, true);
