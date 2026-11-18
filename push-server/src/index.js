@@ -320,7 +320,7 @@ async function handle(request, env) {
   if (request.method === 'GET' && (path === '/' || path === '/api/health')) {
     await ensureSchema(env);
     const last = await env.DB.prepare('SELECT v FROM meta WHERE k = ?').bind('lastRun').first();
-    return json({ ok: true, app: 'gymtrack-push', lastRun: last ? +last.v : null, now: Date.now() });
+    return json({ ok: true, app: 'gymtrack-push', lastRun: last ? +last.v : null, now: Date.now(), googleClientId: env.GOOGLE_CLIENT_ID || null });
   }
   if (request.method === 'GET' && path === '/api/vapid') {
     const v = await getVapid(env);

@@ -101,10 +101,39 @@
         await A.afterLogin(remote);
       }
       if (GT.render) GT.render();
+      await A.offerPasskey();
     } catch (e) {
       ui.toast(esc(e && e.message ? e.message : String(e)), 'error', 4200);
       btn.disabled = false; btn.textContent = label;
     }
+  }
+
+  async function passkey(btn) {
+    btn.disabled = true;
+    try {
+      if (C.status().needsLogin) await C.logout();
+      const remote = await C.passkeyLogin();
+      close();
+      await A.afterLogin(remote);
+      if (GT.render) GT.render();
+    } catch (e) { ui.toast(esc(e && e.message ? e.message : String(e)), 'error', 4200); }
+    btn.disabled = false;
+  }
+
+  /** Face ID- ja Google-painikkeet näytetään vain, jos ne ovat käytettävissä. */
+  async function setupAlt() {
+    const alt = el && el.querySelector('.ag-alt');
+    if (!alt) return;
+    const [pk, gid] = await Promise.all([C.passkeySupported(), C.googleClientId()]);
+    if (!el) return;
+    if (pk) alt.querySelector('.ag-passkey').hidden = false;
+    if (gid) {
+      const g = alt.querySelector('[data-g]');
+      g.hidden = false; alt.querySelector('.ag-gnote').hidden = false;
+      alt.hidden = false;
+      A.googleButton(g, credential => A.googleFlow(credential, () => close())).catch(() => { g.hidden = true; alt.querySelector('.ag-gnote').hidden = true; });
+    }
+    if (pk || gid) alt.hidden = false;
   }
 
   function open(startMode) {
@@ -120,16 +149,24 @@
         <div class="ag-head">${logo}</div>
         <p class="ag-lead">Kirjaudu, niin treenit, ruoat ja mittaukset tallentuvat pilveen automaattisesti ja palautuvat uuteen puhelimeen.</p>
         <div class="ag-body"></div>
+        <div class="ag-alt" hidden>
+          <div class="ag-or"><span>tai</span></div>
+          <button type="button" class="btn btn-soft btn-block ag-passkey" data-ag="passkey" hidden>${icon('lock')} Kirjaudu Face ID:llä</button>
+          <div class="g-btn" data-g hidden></div>
+          <p class="muted sm ag-gnote" hidden>${esc(A.GOOGLE_NOTE)}</p>
+        </div>
         <p class="muted sm ag-privacy">${icon('lock')} ${esc(A.PRIVACY)}</p>
         <button type="button" class="btn btn-ghost btn-block sm ag-skip" data-ag="skip">Jatka ilman tiliä</button>
       </div>`;
     document.body.appendChild(el);
     render();
+    setupAlt();
     el.addEventListener('click', e => {
       const b = e.target.closest('[data-ag]');
       if (!b) return;
       e.preventDefault();
       const a = b.dataset.ag;
+      if (a === 'passkey') { passkey(b); return; }
       if (a === 'skip') {
         Store.update(s => { s.settings.authSkipped = true; });
         close();

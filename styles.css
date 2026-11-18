@@ -963,3 +963,13 @@ body { background: var(--bg); }
 #authgate .ag-privacy .ic { width: 14px; height: 14px; vertical-align: -2px; }
 #authgate .ag-skip { color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { #authgate .ag-inner { animation: none; } }
+#authgate .ag-or { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 13px; margin: 2px 0 12px; }
+#authgate .ag-or::before, #authgate .ag-or::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+#authgate .ag-alt { display: flex; flex-direction: column; gap: 10px; }
+#authgate .ag-alt[hidden], #authgate [hidden] { display: none !important; }
+.g-btn { display: flex; justify-content: center; min-height: 44px; }
+.g-btn[hidden] { display: none; }
+.method-row { display: flex; align-items: center; gap: 10px; padding: 6px 2px; font-size: 15px; }
+.method-row .ic { width: 20px; height: 20px; }
+.g-logo { width: 18px; height: 18px; vertical-align: -3px; }
+.card-label.mt { margin-top: 6px; margin-bottom: 0; }

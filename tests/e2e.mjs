@@ -48,7 +48,7 @@ const page = await ctx.newPage();
 // Ulkoiset ruokatietopyynnöt estetään testeissä, jotta tulokset ovat toistettavia (oikea haku testataan erikseen mockilla).
 await page.route('https://world.openfoodfacts.org/**', route => route.fulfill({ contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ count: 0, products: [], status: 0 }) }));
 const errors = [];
-page.on('pageerror', e => errors.push(e.message));
+page.on('pageerror', e => errors.push(e.message + ' @ ' + (e.stack || '').split('\n').slice(1, 3).join(' ')));
 page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|fonts\.googleapis|ERR_/.test(m.text())) errors.push(m.text()); });
 
 const shot = async name => { if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}.png`, fullPage: true }); };
@@ -446,6 +446,48 @@ if (!pushUp) {
   cs = await page.evaluate(() => GT.cloud.status());
   ok(cs.loggedIn && !cs.needsLogin && (await state()).measurements.some(m => m.id === 'm_fromB'), 'uudelleenkirjautuminen uudella salasanalla onnistui');
   await ctxB.close();
+
+  // Face ID (pääsyavain): virtuaalinen todentaja PRF-tuella
+  const ctxC = await browser.newContext({ ...devices['iPhone 13'] });
+  const pageC = await ctxC.newPage();
+  pageC.on('pageerror', e => errors.push('C: ' + e.message));
+  const cdp = await ctxC.newCDPSession(pageC);
+  await cdp.send('WebAuthn.enable');
+  await cdp.send('WebAuthn.addVirtualAuthenticator', { options: { protocol: 'ctap2', transport: 'internal', hasResidentKey: true, hasUserVerification: true, isUserVerified: true, hasPrf: true, automaticPresenceSimulation: true } });
+  await pageC.goto(BASE);
+  await pageC.waitForSelector('#authgate');
+  await pageC.evaluate(p => GT.Store.update(s => { s.push.server = p; }), PUSH);
+  await pageC.waitForSelector('#authgate .ag-passkey:not([hidden])', { timeout: 5000 }).catch(() => {});
+  ok(await pageC.isVisible('#authgate .ag-passkey'), 'kirjautumissivulla on Kirjaudu Face ID:llä -painike');
+  const unameC = 'faceid' + Date.now().toString(36);
+  await pageC.fill('#authgate input[name="username"]', unameC);
+  await pageC.fill('#authgate input[name="password"]', 'Salasana-3');
+  await pageC.fill('#authgate input[name="password2"]', 'Salasana-3');
+  await pageC.click('#authgate button[type="submit"]');
+  await pageC.waitForSelector('.recovery-code', { timeout: 15000 });
+  await pageC.click('[data-sheet="ok"]');
+  await pageC.waitForSelector('text=Kirjaudu jatkossa Face ID:llä?', { timeout: 5000 }).catch(() => {});
+  ok(await pageC.isVisible('text=Kirjaudu jatkossa Face ID:llä?'), 'tilin luonnin jälkeen tarjotaan Face ID:tä');
+  await pageC.click('.sheet [data-sheet="ok"]');
+  await pageC.waitForFunction(() => GT.Store.get().account && GT.Store.get().account.passkey, null, { timeout: 10000 }).catch(() => {});
+  ok(await pageC.evaluate(() => !!GT.Store.get().account.passkey), 'Face ID otettu käyttöön');
+  await pageC.evaluate(() => GT.Store.update(s => { s.measurements.push({ id: 'm_faceid', type: 'weight', date: GT.fmt.todayISO(), value: 80 }); }));
+  await pageC.evaluate(() => GT.cloud.upload());
+  await pageC.evaluate(async () => { await GT.cloud.logout(); GT.Store.update(s => { s.measurements = []; }); });
+  await pageC.evaluate(() => GT.authGate.open('login'));
+  await pageC.waitForSelector('#authgate .ag-passkey:not([hidden])');
+  await pageC.click('#authgate .ag-passkey');
+  await pageC.waitForFunction(() => GT.cloud.status().loggedIn, null, { timeout: 10000 }).catch(() => {});
+  await pageC.waitForTimeout(500);
+  await pageC.evaluate(() => document.querySelectorAll('.sheet [data-sheet="remote"]').forEach(b => b.click()));
+  await pageC.waitForTimeout(500);
+  const stC = await pageC.evaluate(() => GT.Store.get());
+  ok(stC.account && stC.account.username === unameC && stC.measurements.some(m => m.id === 'm_faceid'), 'kirjautuminen Face ID:llä palautti salatut tiedot');
+  await pageC.evaluate(() => { location.hash = '#/settings'; });
+  await pageC.waitForTimeout(300);
+  ok(await pageC.isVisible('.method-row:has-text("Face ID")'), 'asetuksissa näkyy Face ID käytössä');
+  await shot('faceid-settings');
+  await ctxC.close();
 }
 
 console.log('Uudelleenlataus');

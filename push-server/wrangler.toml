@@ -15,3 +15,7 @@ database_id = "REPLACE_WITH_D1_ID"
 
 [vars]
 VAPID_SUBJECT = "https://github.com/lisakives/gymtrack"
+# Sivusto, jolla sovellus toimii (Face ID -pääsyavaimet sidotaan tähän osoitteeseen)
+APP_ORIGINS = "https://lisakives.github.io"
+# Google-kirjautuminen: OAuth-asiakastunnus (Client ID) Google Cloud Consolesta. Tyhjä = pois käytöstä.
+GOOGLE_CLIENT_ID = ""
