@@ -912,3 +912,17 @@ body { background: var(--bg); }
 .barcode-row .code { flex: 1; min-width: 0; height: 44px; border-radius: 13px; border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--text); font-size: 16px; padding: 0 12px; outline: none; -webkit-appearance: none; }
 .barcode-row .btn { height: 44px; padding: 0 16px; }
 .food-sheet .src { margin: 6px 2px 0; font-size: 11.5px; }
+
+/* ---------- Tili ja pilvivarmuuskopio ---------- */
+.cloud-card { display: flex; flex-direction: column; gap: 10px; }
+.cloud-card p { margin: 0; }
+.cloud-card p .ic { width: 14px; height: 14px; vertical-align: -2px; }
+.cloud-head { display: flex; align-items: center; gap: 12px; }
+.cloud-head > .ic { width: 28px; height: 28px; color: var(--accent); flex: none; }
+.cloud-head b { display: block; font-size: 15px; }
+.warn-text { color: var(--bad); }
+.cloud-banner { border-color: var(--border-strong); background: var(--surface); }
+.cloud-banner > .ic { color: var(--accent); animation: none; }
+.cloud-banner a { color: inherit; text-decoration: none; }
+.recovery-code { font: 600 20px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .06em; text-align: center; padding: 16px 10px; margin: 6px 0 4px; border-radius: 14px; background: var(--surface-2); border: 1px dashed var(--border-strong); user-select: all; -webkit-user-select: all; word-break: break-all; }
+.field small { display: block; margin-top: 4px; }
