@@ -61,7 +61,21 @@
 
   function render() {
     if (!el) return;
-    el.querySelector('.ag-body').innerHTML = formHtml();
+    const body = el.querySelector('.ag-body');
+    el.classList.remove('ag-wizard');
+    if (mode === 'register' && GT.signup) {
+      body.innerHTML = `<div class="ag-tabs" role="tablist">
+          <button type="button" data-ag="login" role="tab" aria-selected="false">Kirjaudu</button>
+          <button type="button" class="on" data-ag="register" role="tab" aria-selected="true">Luo tili</button>
+        </div><div class="su-host"></div>`;
+      GT.signup.start(body.querySelector('.su-host'), {
+        prefill,
+        onStep: i => { if (el) { el.classList.toggle('ag-wizard', i > 0); el.scrollTop = 0; } },
+        onFinish: () => { close(); ui.toast('Tervetuloa! Tiedot varmuuskopioidaan nyt automaattisesti.'); }
+      });
+      return;
+    }
+    body.innerHTML = formHtml();
   }
 
   function close() {

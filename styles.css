@@ -973,3 +973,64 @@ body { background: var(--bg); }
 .method-row .ic { width: 20px; height: 20px; }
 .g-logo { width: 18px; height: 18px; vertical-align: -3px; }
 .card-label.mt { margin-top: 6px; margin-bottom: 0; }
+
+/* ---------- Vaiheittainen tilinluonti ---------- */
+#authgate.ag-wizard .ag-tabs, #authgate.ag-wizard .ag-alt, #authgate.ag-wizard .ag-skip, #authgate.ag-wizard .ag-lead, #authgate.ag-wizard .ag-privacy { display: none !important; }
+#authgate.ag-wizard .ag-head { transform: scale(.8); margin-bottom: -10px; }
+#authgate .ag-head { transition: transform .4s var(--ease); }
+.su { display: flex; flex-direction: column; gap: 14px; margin-top: 12px; }
+.su-progress { display: flex; flex-direction: column; gap: 8px; }
+.su-bar { height: 4px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
+.su-bar i { display: block; height: 100%; background: linear-gradient(90deg, #ff6b6b, var(--accent)); border-radius: 4px; transition: width .5s var(--ease); box-shadow: 0 0 12px rgba(229, 57, 59, .6); }
+.su-meta { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--muted); letter-spacing: .02em; }
+.su-meta b { color: var(--text); font-weight: 600; }
+.su-stage { animation: suIn .45s var(--ease) both; }
+.su-stage.back { animation-name: suBack; }
+@keyframes suIn { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+@keyframes suBack { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
+.su-step { display: flex; flex-direction: column; gap: 12px; padding: 22px 18px 18px; border-radius: 22px; background: var(--surface); border: 1px solid var(--border); }
+.su-step p { margin: 0; }
+.su-ic { width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center; background: var(--accent-soft, rgba(229, 57, 59, .14)); color: var(--accent); margin-bottom: 2px; }
+.su-ic .ic { width: 26px; height: 26px; }
+.su-ic.ok { background: rgba(130, 209, 174, .14); color: var(--good); }
+.su-ic.faceid { width: 64px; height: 64px; }
+.su-ic.faceid .ic { width: 36px; height: 36px; }
+.su-title { font-size: 24px; font-weight: 700; line-height: 1.15; }
+.su-text { color: var(--muted); font-size: 15px; line-height: 1.45; }
+.su-input { position: relative; display: flex; align-items: center; }
+.su-input input { width: 100%; padding-right: 46px !important; }
+.su-state { position: absolute; right: 14px; width: 18px; height: 18px; border-radius: 50%; transition: all .2s; }
+.su-state.ok { background: var(--good); box-shadow: 0 0 0 4px rgba(130, 209, 174, .15); }
+.su-state.ok::after { content: ''; position: absolute; left: 6px; top: 3px; width: 4px; height: 8px; border: solid #0a0b0d; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.su-state.bad { background: var(--bad); }
+.su-state.bad::after { content: '!'; position: absolute; inset: 0; display: grid; place-items: center; font: 800 12px var(--font); color: #0a0b0d; }
+.su-state.wait { border: 2px solid var(--surface-3); border-top-color: var(--accent); animation: suSpin .8s linear infinite; }
+.su-eye { position: absolute; right: 6px; width: 38px; height: 38px; border: 0; background: transparent; color: var(--muted); display: grid; place-items: center; cursor: pointer; }
+.su-eye .ic { width: 20px; height: 20px; }
+.su-hint { font-size: 13px; color: var(--muted); min-height: 18px; margin-top: -4px !important; }
+.ok-text { color: var(--good); }
+.su-meter { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-top: -2px; }
+.su-meter i { height: 4px; border-radius: 4px; background: var(--surface-3); transition: background .25s; }
+.su-meter[data-score="1"] i:nth-child(-n+1) { background: var(--bad); }
+.su-meter[data-score="2"] i:nth-child(-n+2) { background: #f0b45a; }
+.su-meter[data-score="3"] i:nth-child(-n+3) { background: #9fd36b; }
+.su-meter[data-score="4"] i { background: var(--good); }
+.su-hidden-user { position: absolute; opacity: 0; pointer-events: none; height: 0; width: 0; padding: 0; border: 0; }
+.su-code { font-size: clamp(15px, 4.6vw, 19px); letter-spacing: .04em; padding: 18px 6px; white-space: nowrap; word-break: normal; }
+.su-row { display: flex; gap: 10px; }
+.su-row .btn { flex: 1; }
+.su-check { display: flex; align-items: center; gap: 12px; padding: 10px 2px; font-size: 15px; cursor: pointer; }
+.su-check input { position: absolute; opacity: 0; }
+.su-check i { flex: none; width: 24px; height: 24px; border-radius: 8px; border: 2px solid var(--border-strong); position: relative; transition: all .2s var(--ease); }
+.su-check input:checked + i { background: var(--accent); border-color: var(--accent); }
+.su-check input:checked + i::after { content: ''; position: absolute; left: 7px; top: 3px; width: 6px; height: 11px; border: solid #fff; border-width: 0 2.5px 2.5px 0; transform: rotate(45deg); }
+.su-spin { display: inline-block; width: 16px; height: 16px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .35); border-top-color: #fff; animation: suSpin .8s linear infinite; vertical-align: -3px; margin-right: 6px; }
+@keyframes suSpin { to { transform: rotate(360deg); } }
+.su-done { align-items: center; text-align: center; }
+.su-burst { width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle, #ff6b6b, var(--accent)); color: #fff; box-shadow: 0 0 0 10px rgba(229, 57, 59, .12), 0 18px 50px -10px rgba(229, 57, 59, .7); animation: spPop .6s var(--ease) both; }
+.su-burst .ic { width: 42px; height: 42px; stroke-width: 2.6; }
+.su-list { list-style: none; padding: 0; margin: 6px 0 4px; display: flex; flex-direction: column; gap: 10px; width: 100%; text-align: left; }
+.su-list li { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: var(--surface-2); font-size: 15px; animation: suIn .45s var(--ease) both; }
+.su-list li:nth-child(2) { animation-delay: .08s; } .su-list li:nth-child(3) { animation-delay: .16s; } .su-list li:nth-child(4) { animation-delay: .24s; }
+.su-list .ic { width: 20px; height: 20px; color: var(--accent); flex: none; }
+@media (prefers-reduced-motion: reduce) { .su-stage, .su-list li, .su-burst { animation: none; } }

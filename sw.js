@@ -4,7 +4,7 @@
  *  - ilmoituksen napautus avaa sovelluksen oikeaan kohtaan
  * Kun muutat sovelluksen tiedostoja, kasvata VERSION-numeroa, jotta
  * puhelin hakee uuden version. */
-const VERSION = 'gymtrack-v9';
+const VERSION = 'gymtrack-v10';
 const ASSETS = [
   './',
   './index.html',
@@ -27,6 +27,7 @@ const ASSETS = [
   './js/account.js',
   './js/app.js',
   './js/splash.js',
+  './js/signup.js',
   './js/authgate.js',
   './icons/icon-192.png',
   './icons/icon-512.png',

@@ -69,6 +69,10 @@ test('tili: luonti, kirjautuminen, varmuuskopio, salasanan vaihto, unohtunut sal
   r = await call(env, '/api/account/register', { ...dev, username: 'x', pwKey: pw.authKey, recoveryKey: rc.authKey, pwWrap: 'a'.repeat(60), rcWrap: 'a'.repeat(60) });
   assert.equal(r.status, 400, 'liian lyhyt käyttäjänimi');
 
+  assert.equal((await call(env, '/api/account/available', { username: 'RONI' })).body.available, false, 'varattu nimi');
+  assert.equal((await call(env, '/api/account/available', { username: 'vapaa_nimi' })).body.available, true, 'vapaa nimi');
+  assert.equal((await call(env, '/api/account/available', { username: 'x' })).body.available, false, 'liian lyhyt');
+
   // Palvelin ei tallenna salasanaa, palautuskoodia eikä avaimia sellaisenaan
   const row = env.DB.raw.prepare('SELECT * FROM accounts').get();
   const dump = JSON.stringify(row);

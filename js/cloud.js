@@ -232,6 +232,10 @@
     if (!/^[a-z0-9._-]{3,32}$/.test(normUser(u))) throw new Error('Käyttäjänimessä saa olla 3–32 merkkiä: a–z, 0–9, piste, viiva tai alaviiva');
   }
 
+  async function usernameAvailable(username) {
+    return api('/api/account/available', { username: normUser(username) });
+  }
+
   async function register(username, password) {
     checkUsername(username); checkPassword(password);
     const user = normUser(username);
@@ -456,7 +460,7 @@
   window.addEventListener('online', () => schedule(0));
 
   GT.cloud = Object.assign(crypt, {
-    available, loggedIn, status, register, login, resetPassword, changePassword, logout, deleteAccount,
+    available, loggedIn, status, register, usernameAvailable, login, resetPassword, changePassword, logout, deleteAccount,
     passkeySupported, enablePasskey, passkeyLogin, methods, deletePasskey, googleClientId, googleReady, info, googleLogin, googleSignup, googleLink, googleUnlink,
     upload, check, list, fetchRemote, applyRemote, hasLocalData, onChange(fn) { notify = fn; }
   });
