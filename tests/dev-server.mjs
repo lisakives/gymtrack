@@ -16,7 +16,7 @@ const stmt = sql => {
   };
   return s;
 };
-const env = { DB: { prepare: stmt, async batch(list) { for (const x of list) await x.run(); } }, VAPID_SUBJECT: 'mailto:test@example.com' };
+const env = { DB: { prepare: stmt, async batch(list) { for (const x of list) await x.run(); } }, VAPID_SUBJECT: 'mailto:test@example.com', APP_ORIGINS: process.env.APP_ORIGINS || 'http://localhost:8000' };
 
 const port = +process.env.PORT || 8787;
 http.createServer(async (req, res) => {

@@ -24,14 +24,22 @@ const MAX_WRAP = 512;
 const MAX_FAILS = 8;
 const LOCK_MS = 15 * 60 * 1000;
 
+import { handleSso } from './sso.js';
+
 const enc = new TextEncoder();
 const hex = buf => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
 
+const cloudReady = new WeakSet();
 export async function ensureCloudSchema(env) {
+  if (cloudReady.has(env.DB)) return;
   await env.DB.batch([
     env.DB.prepare('CREATE TABLE IF NOT EXISTS accounts (username TEXT PRIMARY KEY, user_id TEXT NOT NULL, pw_salt TEXT NOT NULL, pw_hash TEXT NOT NULL, rc_salt TEXT NOT NULL, rc_hash TEXT NOT NULL, pw_wrap TEXT NOT NULL, rc_wrap TEXT NOT NULL, created INTEGER, fails INTEGER DEFAULT 0, locked_until INTEGER DEFAULT 0)'),
+    env.DB.prepare('CREATE TABLE IF NOT EXISTS passkeys (cred_id TEXT PRIMARY KEY, username TEXT NOT NULL, public_key TEXT NOT NULL, alg INTEGER NOT NULL, counter INTEGER DEFAULT 0, prf_wrap TEXT NOT NULL, name TEXT, created INTEGER, last_used INTEGER)'),
+    env.DB.prepare('CREATE TABLE IF NOT EXISTS google_links (sub TEXT PRIMARY KEY, username TEXT NOT NULL, server_wrap TEXT NOT NULL, created INTEGER)'),
+    env.DB.prepare('CREATE TABLE IF NOT EXISTS challenges (id TEXT PRIMARY KEY, purpose TEXT NOT NULL, username TEXT, exp INTEGER NOT NULL)'),
     env.DB.prepare('CREATE TABLE IF NOT EXISTS backups (user_id TEXT NOT NULL, day TEXT NOT NULL, at INTEGER NOT NULL, hash TEXT, size INTEGER, data TEXT NOT NULL, PRIMARY KEY (user_id, day))')
   ]);
+  cloudReady.add(env.DB);
 }
 
 export function cleanUsername(u) {
@@ -43,23 +51,23 @@ export function cleanUsername(u) {
   return name;
 }
 
-function cleanKey(k, what = 'Salasana') {
+export function cleanKey(k, what = 'Salasana') {
   const key = String(k || '');
   if (!/^[A-Za-z0-9_-]{40,64}$/.test(key)) { const e = new Error(what + ' puuttuu tai on virheellinen'); e.status = 400; throw e; }
   return key;
 }
 
-async function digest(salt, key) {
+export async function digest(salt, key) {
   return hex(await crypto.subtle.digest('SHA-256', enc.encode(salt + ':' + key)));
 }
-function cleanWrap(w) {
+export function cleanWrap(w) {
   const v = String(w || '');
   if (!/^[A-Za-z0-9_-]{40,512}$/.test(v) || v.length > MAX_WRAP) { const e = new Error('Salausavain puuttuu'); e.status = 400; throw e; }
   return v;
 }
 
-function randomHex(n = 16) { return hex(crypto.getRandomValues(new Uint8Array(n))); }
-function randomToken(n) {
+export function randomHex(n = 16) { return hex(crypto.getRandomValues(new Uint8Array(n))); }
+export function randomToken(n) {
   return btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(n)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 /** Vakioaikainen vertailu */
@@ -70,7 +78,7 @@ function same(a, b) {
   return d === 0;
 }
 
-async function getAccount(env, username) {
+export async function getAccount(env, username) {
   return env.DB.prepare('SELECT * FROM accounts WHERE username = ?').bind(username).first();
 }
 
@@ -98,7 +106,7 @@ async function verify(env, username, key, field) {
   return acc;
 }
 
-async function identityOf(env, acc) {
+export async function identityOf(env, acc) {
   const u = await env.DB.prepare('SELECT id, secret FROM users WHERE id = ?').bind(acc.user_id).first();
   return { userId: u.id, secret: u.secret, username: acc.username };
 }
@@ -119,6 +127,10 @@ function helsinkiDay(ms, tz) {
  * auth(env, body, create) on index.js:n laitetunnistus.
  */
 export async function handleCloud(path, body, env, auth) {
+  if (path.startsWith('/api/passkey/') || path.startsWith('/api/google/')) {
+    await ensureCloudSchema(env);
+    return handleSso(path, body, env, auth);
+  }
   if (!path.startsWith('/api/account/') && !path.startsWith('/api/backup/')) return null;
   await ensureCloudSchema(env);
 
@@ -169,10 +181,19 @@ export async function handleCloud(path, body, env, auth) {
   }
 
   if (path === '/api/account/delete') {
-    const username = cleanUsername(body.username);
-    const acc = await verify(env, username, cleanKey(body.pwKey), 'pw');
+    // Vahvistus salasanalla tai (Google-/Face ID -tileillä) kirjautuneen laitteen tunnisteella
+    let acc;
+    if (body.pwKey) acc = await verify(env, cleanUsername(body.username), cleanKey(body.pwKey), 'pw');
+    else {
+      const user = await auth(env, body);
+      acc = await env.DB.prepare('SELECT * FROM accounts WHERE user_id = ?').bind(user.id).first();
+      if (!acc) { const e = new Error('Tiliä ei löytynyt'); e.status = 404; throw e; }
+    }
+    const username = acc.username;
     await env.DB.batch([
       env.DB.prepare('DELETE FROM backups WHERE user_id = ?').bind(acc.user_id),
+      env.DB.prepare('DELETE FROM passkeys WHERE username = ?').bind(username),
+      env.DB.prepare('DELETE FROM google_links WHERE username = ?').bind(username),
       env.DB.prepare('DELETE FROM accounts WHERE username = ?').bind(username)
     ]);
     return { ok: true };

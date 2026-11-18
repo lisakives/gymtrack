@@ -310,9 +310,133 @@
 
   async function deleteAccount(password) {
     const user = S().account.username;
-    const pw = await derive(password, user, 'pw');
-    await api('/api/account/delete', { username: user, pwKey: pw.authKey });
+    if (password) {
+      const pw = await derive(password, user, 'pw');
+      await api('/api/account/delete', { username: user, pwKey: pw.authKey });
+    } else await api('/api/account/delete', ident());
     await logout();
+  }
+
+  /* ---------- Face ID (pääsyavain) ---------- */
+  const PRF_SALT = enc.encode('gymtrack-prf-salt-v1-000000000000').slice(0, 32);
+  const rpId = () => location.hostname;
+
+  async function passkeySupported() {
+    try {
+      return !!(window.PublicKeyCredential && navigator.credentials && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable());
+    } catch (e) { return false; }
+  }
+  async function prfKey(first) {
+    const base = await subtle().importKey('raw', new Uint8Array(first), 'HKDF', false, ['deriveKey']);
+    return subtle().deriveKey({ name: 'HKDF', hash: 'SHA-256', salt: enc.encode('gymtrack'), info: enc.encode('passkey-kek') }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  }
+  const prfUnsupported = () => new Error('Tämä laite ei tue Face ID -salausta. Päivitä iOS 18:aan tai uudempaan, tai kirjaudu salasanalla.');
+  const webauthnError = e => (e && (e.name === 'NotAllowedError' || e.name === 'AbortError')) ? new Error('Face ID peruttiin') : e;
+
+  /** Ottaa Face ID -kirjautumisen käyttöön kirjautuneelle tilille. */
+  async function enablePasskey() {
+    if (!loggedIn()) throw new Error('Kirjaudu ensin');
+    const { challenge, username } = await api('/api/passkey/challenge', { ...ident(), purpose: 'register' });
+    let cred;
+    try {
+      cred = await navigator.credentials.create({ publicKey: {
+        rp: { name: 'GymTrack', id: rpId() },
+        user: { id: enc.encode(username), name: username, displayName: username },
+        challenge: unb64u(challenge),
+        pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+        authenticatorSelection: { residentKey: 'required', requireResidentKey: true, userVerification: 'required' },
+        attestation: 'none', timeout: 120000,
+        extensions: { prf: { eval: { first: PRF_SALT } } }
+      } });
+    } catch (e) { throw webauthnError(e); }
+    const ext = cred.getClientExtensionResults ? cred.getClientExtensionResults() : {};
+    let first = ext.prf && ext.prf.results && ext.prf.results.first;
+    if (!first) {
+      if (ext.prf && ext.prf.enabled === false) throw prfUnsupported();
+      // Osa laitteista antaa PRF-arvon vasta kirjautuessa: haetaan se heti
+      let a;
+      try {
+        a = await navigator.credentials.get({ publicKey: { challenge: crypto.getRandomValues(new Uint8Array(32)), rpId: rpId(), allowCredentials: [{ type: 'public-key', id: cred.rawId }], userVerification: 'required', extensions: { prf: { eval: { first: PRF_SALT } } } } });
+      } catch (e) { throw webauthnError(e); }
+      const r = a.getClientExtensionResults().prf;
+      first = r && r.results && r.results.first;
+      if (!first) throw prfUnsupported();
+    }
+    const resp = cred.response;
+    const publicKey = resp.getPublicKey ? resp.getPublicKey() : null;
+    if (!publicKey) throw new Error('Selain ei tue pääsyavaimia');
+    await api('/api/passkey/register', {
+      ...ident(), credId: b64u(cred.rawId), clientDataJSON: b64u(resp.clientDataJSON),
+      publicKey: b64u(publicKey), alg: resp.getPublicKeyAlgorithm(), name: /iPhone/.test(navigator.userAgent) ? 'iPhone' : 'Face ID',
+      prfWrap: await wrapKey(unb64u(meta().dek), await prfKey(first))
+    });
+    GT.Store.update(s => { s.account.passkey = true; });
+    return true;
+  }
+
+  async function passkeyLogin() {
+    const { challenge } = await api('/api/passkey/challenge', { purpose: 'login' });
+    let a;
+    try {
+      a = await navigator.credentials.get({ publicKey: { challenge: unb64u(challenge), rpId: rpId(), userVerification: 'required', timeout: 120000, extensions: { prf: { eval: { first: PRF_SALT } } } } });
+    } catch (e) { throw webauthnError(e); }
+    const r = a.getClientExtensionResults().prf;
+    const first = r && r.results && r.results.first;
+    if (!first) throw prfUnsupported();
+    const res = await api('/api/passkey/login', {
+      credId: b64u(a.rawId), clientDataJSON: b64u(a.response.clientDataJSON),
+      authenticatorData: b64u(a.response.authenticatorData), signature: b64u(a.response.signature)
+    });
+    const dek = await unwrapKey(res.wrap, await prfKey(first));
+    const remote = await adopt(res, dek);
+    GT.Store.update(s => { s.account.passkey = true; });
+    return remote;
+  }
+
+  const methods = () => api('/api/passkey/list', ident());
+  const deletePasskey = credId => api('/api/passkey/delete', { ...ident(), credId });
+
+  /* ---------- Google ---------- */
+  let serverInfo = null;
+  async function info() {
+    if (serverInfo) return serverInfo;
+    try { serverInfo = await (await fetch(server() + '/api/health')).json(); } catch (e) { serverInfo = {}; }
+    return serverInfo;
+  }
+  async function googleClientId() { return (await info()).googleClientId || null; }
+  const googleReady = () => !!(serverInfo && serverInfo.googleClientId);
+
+  /** Kirjautuu Google-tunnisteella. Palauttaa { needsSignup: true }, jos Google-tiliä ei ole vielä yhdistetty. */
+  async function googleLogin(credential) {
+    const res = await api('/api/google/login', { credential });
+    if (!res.linked) return { needsSignup: true };
+    const remote = await adopt(res, unb64u(res.dek));
+    GT.Store.update(s => { s.account.google = true; });
+    return { remote };
+  }
+
+  /** Luo uuden tilin Google-tunnisteella. Palauttaa palautuskoodin. */
+  async function googleSignup(credential) {
+    const user = 'google-' + Array.from(crypto.getRandomValues(new Uint8Array(3)), b => b.toString(16).padStart(2, '0')).join('');
+    const code = recoveryCode();
+    const rc = await derive(normCode(code), user, 'rc');
+    const dek = crypto.getRandomValues(new Uint8Array(32));
+    const res = await api('/api/google/signup', { ...ensureIdentity(), credential, username: user, recoveryKey: rc.authKey, rcWrap: await wrapKey(dek, rc.kek), dek: b64u(dek) });
+    setMeta(null);
+    setMeta({ dek: b64u(dek) });
+    GT.Store.update(s => { s.account = { username: res.username, since: new Date().toISOString(), google: true }; });
+    GT.Store.saveNow();
+    await upload(true).catch(() => {});
+    return code;
+  }
+
+  async function googleLink(credential) {
+    await api('/api/google/link', { ...ident(), credential, dek: meta().dek });
+    GT.Store.update(s => { s.account.google = true; });
+  }
+  async function googleUnlink() {
+    await api('/api/google/unlink', ident());
+    GT.Store.update(s => { s.account.google = false; });
   }
 
   const list = async () => (await api('/api/backup/list', ident())).backups || [];
@@ -333,6 +457,7 @@
 
   GT.cloud = Object.assign(crypt, {
     available, loggedIn, status, register, login, resetPassword, changePassword, logout, deleteAccount,
+    passkeySupported, enablePasskey, passkeyLogin, methods, deletePasskey, googleClientId, googleReady, info, googleLogin, googleSignup, googleLink, googleUnlink,
     upload, check, list, fetchRemote, applyRemote, hasLocalData, onChange(fn) { notify = fn; }
   });
 })();

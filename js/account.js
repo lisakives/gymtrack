@@ -16,6 +16,8 @@
   }
   const counts = st => `${(st.sessions || []).filter(x => x.endedAt).length} treeniä · ${(st.measurements || []).length} mittausta · ${((st.food && st.food.entries) || []).length} ruokakirjausta`;
 
+  const GOOGLE_G = '<svg class="ic g-logo" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.9 6.1C12.5 13.6 17.8 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.7 6c4.5-4.2 6.9-10.3 6.9-17.7z"/><path fill="#FBBC05" d="M10.6 28.6c-.5-1.4-.8-3-.8-4.6s.3-3.2.8-4.6l-7.9-6.1C1 16.6 0 20.2 0 24s1 7.4 2.7 10.7l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.7-6c-2.2 1.5-5 2.3-8.2 2.3-6.2 0-11.5-4.1-13.4-9.8l-7.9 6.1C6.6 42.6 14.6 48 24 48z"/></svg>';
+  const GOOGLE_NOTE = 'Google-kirjautumisessa salausavain säilytetään palvelimella, jotta kirjautuminen onnistuu ilman salasanaa. Palvelin voisi silloin teknisesti avata varmuuskopion. Google ei näe tietojasi, eikä sähköpostiasi tallenneta.';
   const PRIVACY = 'Tiedot salataan puhelimessa ennen lähetystä. Palvelin ei näe salasanaasi eikä tietojasi, eikä sähköpostia kysytä.';
 
   /* ---------- Näkymät ---------- */
@@ -46,7 +48,14 @@
       <p class="muted sm">${icon('lock')} Salattu puhelimessa. Palvelin säilyttää 30 päivän versiot, mutta ei pysty lukemaan niitä.</p>
       ${c.needsLogin ? `<button class="btn btn-primary btn-block" data-action="acc-relogin">Kirjaudu uudelleen</button>` : `<button class="btn btn-soft btn-block" data-action="acc-sync">${icon('upload')} Varmuuskopioi nyt</button>`}
       <button class="btn btn-soft btn-block" data-action="acc-versions">${icon('history')} Palauta aiempi versio</button>
-      <button class="btn btn-ghost btn-block" data-action="acc-password">Vaihda salasana</button>
+      <div class="card-label mt">Kirjautumistavat</div>
+      ${window.PublicKeyCredential ? (S().account.passkey
+        ? `<div class="method-row">${icon('lock')}<span class="grow">Face ID</span><span class="badge ok">Käytössä</span></div>`
+        : `<button class="btn btn-soft btn-block" data-action="acc-passkey">${icon('lock')} Ota Face ID -kirjautuminen käyttöön</button>`) : ''}
+      ${C.googleReady() ? (S().account.google
+        ? `<div class="method-row">${GOOGLE_G}<span class="grow">Google</span><button class="btn btn-ghost sm" data-action="acc-google-unlink">Poista</button></div>`
+        : `<button class="btn btn-soft btn-block" data-action="acc-google-link">${GOOGLE_G} Yhdistä Google-tili</button>`) : ''}
+      ${/^google-/.test(c.username) ? '' : '<button class="btn btn-ghost btn-block" data-action="acc-password">Vaihda salasana</button>'}
       <button class="btn btn-ghost btn-block" data-action="acc-logout">Kirjaudu ulos</button>
       <button class="btn btn-danger-ghost btn-block" data-action="acc-delete">${icon('trash')} Poista tili ja pilvikopiot</button>
     </section>`;
@@ -108,6 +117,64 @@
     location.hash = '#/today';
   }
 
+  /** Tarjoaa Face ID:n käyttöönottoa kerran kirjautumisen jälkeen. */
+  async function offerPasskey() {
+    const a = S().account;
+    if (!a || a.passkey || a.passkeyOffered || !(await C.passkeySupported())) return;
+    Store.update(s => { s.account.passkeyOffered = true; });
+    const ok = await ui.confirm({ title: 'Kirjaudu jatkossa Face ID:llä?', text: 'Seuraavalla kerralla (myös uudessa iPhonessa, jossa on sama Apple ID) kirjautuminen onnistuu pelkällä Face ID:llä. Salaus säilyy: palvelin ei näe tietojasi.', ok: 'Ota Face ID käyttöön', cancel: 'Ei nyt' });
+    if (!ok) return;
+    try { await C.enablePasskey(); ui.toast('Face ID otettu käyttöön'); } catch (e) { err(e); }
+    render();
+  }
+
+  /** Google-painike: lataa Googlen kirjautumiskirjaston ja piirtää painikkeen. */
+  let gisLoading = null;
+  function loadGis() {
+    if (window.google && google.accounts && google.accounts.id) return Promise.resolve();
+    if (!gisLoading) gisLoading = new Promise((resolve, reject) => {
+      const sc = document.createElement('script');
+      sc.src = 'https://accounts.google.com/gsi/client'; sc.async = true;
+      sc.onload = resolve; sc.onerror = () => { gisLoading = null; reject(new Error('Googlen kirjautumista ei voitu ladata')); };
+      document.head.appendChild(sc);
+    });
+    return gisLoading;
+  }
+  let gisCallback = null;
+  async function googleButton(container, onCredential) {
+    const id = await C.googleClientId();
+    if (!id || !container) return false;
+    await loadGis();
+    gisCallback = onCredential;
+    if (!loadGis.inited) {
+      google.accounts.id.initialize({ client_id: id, callback: r => gisCallback && gisCallback(r.credential), auto_select: false, cancel_on_tap_outside: true, ux_mode: 'popup', itp_support: true });
+      loadGis.inited = true;
+    }
+    container.innerHTML = '';
+    google.accounts.id.renderButton(container, { theme: 'filled_black', size: 'large', shape: 'pill', text: 'continue_with', locale: 'fi', width: Math.min(400, container.clientWidth || 320) });
+    return true;
+  }
+
+  /** Google-tunnisteella kirjautuminen tai uuden tilin luonti. */
+  async function googleFlow(credential, onDone) {
+    try {
+      const r = await C.googleLogin(credential);
+      if (r.needsSignup) {
+        const ok = await ui.confirm({ title: 'Luodaanko uusi tili Googlella?', text: 'Tähän Google-tiliin ei ole vielä yhdistetty GymTrack-tiliä. Jos sinulla on jo tili, kirjaudu ensin salasanalla ja yhdistä Google asetuksista.<br><br>' + esc(GOOGLE_NOTE), ok: 'Luo tili Googlella' });
+        if (!ok) return false;
+        const code = await C.googleSignup(credential);
+        onDone && onDone();
+        await showRecoveryCode(code);
+        ui.toast('Tili luotu. Tiedot varmuuskopioidaan nyt automaattisesti.');
+      } else {
+        onDone && onDone();
+        await afterLogin(r.remote);
+      }
+      render();
+      return true;
+    } catch (e) { err(e); return false; }
+  }
+
   async function busy(label, fn) {
     ui.toast(label, '', 1600);
     return fn();
@@ -124,6 +191,7 @@
     try {
       const remote = await busy('Kirjaudutaan…', () => C.login(v.username, v.password));
       await afterLogin(remote);
+      await offerPasskey();
     } catch (e) { err(e); }
     render();
   }
@@ -166,17 +234,18 @@
       render();
       await showRecoveryCode(code);
       ui.toast('Tili luotu. Tiedot varmuuskopioidaan nyt automaattisesti.');
+      await offerPasskey();
     } catch (e) { err(e); }
     render();
   }
 
-  GT.accountView = { section, banner };
+  GT.accountView = { section, banner, afterLogin, showRecoveryCode, offerPasskey, googleButton, googleFlow, PRIVACY, GOOGLE_NOTE, GOOGLE_G };
 
   Object.assign(GT.extraActions = GT.extraActions || {}, {
-    'acc-register': () => registerFlow(),
-    'acc-login': () => loginFlow(),
-    'acc-relogin': async () => { const u = S().account && S().account.username; await C.logout(); await loginFlow(u || ''); },
-    'acc-forgot': () => forgotFlow(),
+    'acc-register': () => (GT.authGate ? GT.authGate.open('register') : registerFlow()),
+    'acc-login': () => (GT.authGate ? GT.authGate.open('login') : loginFlow()),
+    'acc-relogin': async () => { if (GT.authGate) return GT.authGate.open('login'); const u = S().account && S().account.username; await C.logout(); await loginFlow(u || ''); },
+    'acc-forgot': () => (GT.authGate ? GT.authGate.open('forgot') : forgotFlow()),
     'acc-banner-hide': () => { Store.update(s => { s.settings.cloudBannerHidden = true; }); render(); },
     'acc-sync': async () => {
       try { await C.upload(true); ui.toast('Varmuuskopioitu'); } catch (e) { err(e); }
@@ -222,11 +291,31 @@
       render();
     },
     'acc-delete': async () => {
-      const v = await ui.form({ title: 'Poista tili', ok: 'Poista tili pysyvästi', fields: [
-        { name: 'password', label: 'Vahvista salasanalla', type: 'password', required: true, autocomplete: 'current-password' }
-      ], extra: '<p class="muted sm">Tili ja kaikki pilven varmuuskopiot poistetaan palvelimelta pysyvästi. Tämän puhelimen tiedot säilyvät.</p>' });
-      if (!v || v.__action) return;
-      try { await C.deleteAccount(v.password); ui.toast('Tili ja pilvikopiot poistettu'); } catch (e) { err(e); }
+      const ok = await ui.confirm({ title: 'Poistetaanko tili?', text: 'Tili, kirjautumistavat ja kaikki pilven varmuuskopiot poistetaan palvelimelta pysyvästi. Tämän puhelimen tiedot säilyvät.', ok: 'Poista tili pysyvästi', danger: true });
+      if (!ok) return;
+      try { await C.deleteAccount(); ui.toast('Tili ja pilvikopiot poistettu'); } catch (e) { err(e); }
+      render();
+    },
+    'acc-passkey': async () => {
+      try { await C.enablePasskey(); ui.toast('Face ID otettu käyttöön'); } catch (e) { err(e); }
+      render();
+    },
+    'acc-google-link': async () => {
+      await ui.sheet(`<h3 class="sheet-title">Yhdistä Google-tili</h3>
+        <p class="sheet-text">Voit jatkossa kirjautua myös Googlella.</p>
+        <p class="muted sm">${esc(GOOGLE_NOTE)}</p>
+        <div class="g-btn" data-g></div>
+        <div class="sheet-actions"><button class="btn btn-ghost btn-block" data-sheet="cancel">Peruuta</button></div>`, {
+        onMount(el, close) {
+          googleButton(el.querySelector('[data-g]'), async credential => {
+            try { await C.googleLink(credential); close('ok'); ui.toast('Google-tili yhdistetty'); render(); } catch (e) { err(e); }
+          }).catch(err);
+        }
+      });
+    },
+    'acc-google-unlink': async () => {
+      if (!(await ui.confirm({ title: 'Poistetaanko Google-yhteys?', text: 'Googlella ei voi enää kirjautua, ja palvelimelle tallennettu salausavaimen kopio poistetaan.', ok: 'Poista yhteys' }))) return;
+      try { await C.googleUnlink(); ui.toast('Google-yhteys poistettu'); } catch (e) { err(e); }
       render();
     }
   });
@@ -235,5 +324,8 @@
   C.onChange(() => { if (location.hash.startsWith('#/settings')) render(); });
 
   // Käynnistyksessä: hae toisen laitteen muutokset / lähetä odottavat
-  setTimeout(() => C.check(), 1200);
+  setTimeout(() => {
+    C.check();
+    if (C.available()) C.info().then(() => { if (C.googleReady() && location.hash.startsWith('#/settings')) render(); });
+  }, 1200);
 })();

@@ -70,6 +70,8 @@ gymtrack/
     ├── lifeactions.js     Edellisten toiminnot
     ├── cloud.js           Salaus, käyttäjätili ja automaattinen pilvivarmuuskopio
     ├── account.js         Tilin näkymät: luo tili, kirjaudu, unohtuiko salasana, versiot
+    ├── authgate.js        Kirjautumissivu latausnäytön jälkeen (salasana, Face ID, Google)
+    ├── splash.js          Animoitu latausnäyttö
     └── app.js             Reititys, toiminnot, lepoajastin
 push-server/               Push-palvelin, tilit ja varmuuskopiot (Cloudflare Worker), testit
 .github/workflows/         Push-palvelimen automaattinen käyttöönotto
@@ -111,6 +113,16 @@ Sovellus aukeaa nyt kotinäytöltä koko näytön tilassa omana sovelluksenaan. 
 - **Unohtuiko salasana?** Tiliä luodessa näytetään kerran 20-merkkinen palautuskoodi. Tallenna se salasanojen hallintaan tai kuvakaappauksena. Koodilla voi asettaa uuden salasanan; muut kirjautuneet laitteet pyytävät silloin kirjautumaan uudelleen.
 - **Aiemmat versiot**: palvelin säilyttää jokaiselta päivältä päivän viimeisimmän tilan 30 päivän ajan (*Palauta aiempi versio*).
 - JSON-tiedostoon vienti ja palautus toimivat edelleen samassa näkymässä.
+
+### Pikakirjautuminen: Face ID ja Google
+
+- **Face ID**: kirjautumissivulla *Kirjaudu Face ID:llä*. Käyttöön otetaan tilin luonnin tai kirjautumisen jälkeen (tai *Asetukset → Kirjautumistavat*). Pääsyavain synkronoituu iCloud-avainnipun kautta, joten se toimii myös uudessa iPhonessa samalla Apple ID:llä. Salaus säilyy päästä päähän (pääsyavaimen PRF-laajennus, iOS 18 tai uudempi).
+- **Google**: *Jatka Googlella* luo uuden tilin tai kirjautuu tilille, johon Google on yhdistetty (*Asetukset → Yhdistä Google-tili*). Google-kirjautumisessa salausavain säilytetään palvelimella palvelimen omalla avaimella lukittuna, joten palvelin voisi teknisesti avata varmuuskopion. Googlelta tallennetaan vain tunniste, ei sähköpostia.
+- **Google-kirjautumisen käyttöönotto (kerran)**:
+  1. Avaa console.cloud.google.com → luo projekti (esim. GymTrack).
+  2. *APIs & Services → OAuth consent screen*: User type *External*, sovelluksen nimi GymTrack, tallenna. Lisää itsesi testikäyttäjäksi tai julkaise (*Publish app*).
+  3. *APIs & Services → Credentials → Create credentials → OAuth client ID*: tyyppi *Web application*, *Authorized JavaScript origins*: `https://lisakives.github.io`. Luo.
+  4. Kopioi *Client ID* (muotoa `…apps.googleusercontent.com`; se ei ole salaisuus) tiedostoon `push-server/wrangler.toml` kohtaan `GOOGLE_CLIENT_ID` ja mergeä `main`-haaraan. Työnkulku julkaisee palvelimen, ja Google-painike ilmestyy sovellukseen.
 
 ### Tietosuoja
 
