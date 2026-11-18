@@ -120,7 +120,7 @@
           variant = i === -1 ? e.variants[0] : e.variants[(i + 1) % e.variants.length];
         }
         return {
-          exerciseId: e.id, name: e.name,
+          exerciseId: e.id, name: e.name, equipment: e.equipment,
           variants: e.variants && e.variants.length ? e.variants.slice() : undefined,
           variant,
           target: { sets: e.sets, repMin: e.repMin, repMax: e.repMax },
@@ -260,9 +260,14 @@
   const findWorkout = id => S().workouts.find(w => w.id === id);
   const activeEx = idx => { const a = M.activeSession(S()); return a ? a.exercises[+idx] : null; };
 
+  const equipmentField = value => ({
+    name: 'equipment', label: 'Väline', type: 'select', value: value || '',
+    options: [{ value: '', label: 'Ei valittu' }, ...Object.entries(M.EQUIPMENT).map(([v, l]) => ({ value: v, label: l }))]
+  });
   function exerciseFields(e = {}, st, currentW) {
     const fields = [
       { name: 'name', label: 'Liikkeen nimi', value: e.name || '', required: true, placeholder: 'esim. Penkkipunnerrus' },
+      equipmentField(e.equipment),
       { name: 'sets', label: 'Sarjat', type: 'number', int: true, value: e.sets ?? 3, required: true, third: true },
       { name: 'repMin', label: 'Toistot min', type: 'number', int: true, value: e.repMin ?? 8, required: true, third: true },
       { name: 'repMax', label: 'Toistot max', type: 'number', int: true, value: e.repMax ?? 12, required: true, third: true },
@@ -273,6 +278,7 @@
   }
   function applyExercise(e, v) {
     e.name = v.name;
+    if (M.EQUIPMENT[v.equipment]) e.equipment = v.equipment; else delete e.equipment;
     e.sets = Math.max(1, Math.min(20, Math.round(v.sets)));
     e.repMin = Math.max(1, Math.round(v.repMin));
     e.repMax = Math.max(e.repMin, Math.round(v.repMax));
@@ -471,15 +477,16 @@
       const v = await ui.form({ title: 'Lisää liike treeniin', ok: 'Lisää', fields: [
         { name: 'pick', label: 'Ohjelman liike', type: 'select', value: '', options: opts },
         { name: 'name', label: 'tai uuden liikkeen nimi', placeholder: 'esim. Facepull' },
+        Object.assign(equipmentField(''), { label: 'Uuden liikkeen väline' }),
         { name: 'sets', label: 'Sarjat', type: 'number', int: true, value: 3, required: true }] });
       if (!v || v.__action) return;
       let src = null;
       st.workouts.forEach(w => w.exercises.forEach(e => { if (e.id === v.pick) src = e; }));
       if (!src && !v.name) return ui.toast('Valitse liike tai anna nimi', 'error');
       const ex = src ? {
-        exerciseId: src.id, name: src.name, variants: src.variants ? src.variants.slice() : undefined,
+        exerciseId: src.id, name: src.name, equipment: src.equipment, variants: src.variants ? src.variants.slice() : undefined,
         variant: src.variants ? src.variants[0] : undefined, target: { sets: src.sets, repMin: src.repMin, repMax: src.repMax }
-      } : { exerciseId: 'c:' + v.name.toLowerCase(), name: v.name };
+      } : { exerciseId: 'c:' + v.name.toLowerCase(), name: v.name, equipment: M.EQUIPMENT[v.equipment] ? v.equipment : undefined };
       ex.sets = Array.from({ length: Math.max(1, Math.round(v.sets) || 3) }, () => ({ weight: '', reps: '', done: false }));
       Store.update(s => M.activeSession(s).exercises.push(ex));
       go('session/' + (M.activeSession(S()).exercises.length - 1));

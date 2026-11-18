@@ -217,7 +217,7 @@
             const prev = M.previousFor(st, key) || (e.variants ? e.variants.map(v => M.previousFor(st, e.id + '::' + v)).find(Boolean) : null);
             return `<li class="list-row">
               <span class="num-badge">${i + 1}</span>
-              <div class="grow"><b>${esc(e.name)}</b>
+              <div class="grow"><b>${esc(e.name)}</b>${M.equipLabel(e) ? `<span class="equip-tag">${M.equipLabel(e)}</span>` : ''}
                 <div class="muted sm">${e.sets} × ${e.repMin}–${e.repMax}${prev ? ' · viimeksi ' + esc(F.setsSummary(prev.sets)) : ''}</div></div>
             </li>`;
           }).join('') || `<li class="list-row muted">Ei liikkeitä. Lisää liikkeitä muokkaustilassa.</li>`}
@@ -244,7 +244,7 @@
         <ul class="list card">
           ${w.exercises.map((e, i) => `<li class="list-row edit-row">
             <div class="grow" data-action="edit-exercise" data-w="${w.id}" data-e="${e.id}">
-              <b>${esc(e.name)}</b>
+              <b>${esc(e.name)}</b>${M.equipLabel(e) ? `<span class="equip-tag">${M.equipLabel(e)}</span>` : ''}
               <div class="muted sm">${e.sets} sarjaa · ${e.repMin}–${e.repMax} toistoa${e.variants && e.variants.length ? ' · ' + e.variants.map(esc).join(' / ') : ''}</div>
             </div>
             <div class="row-actions">
@@ -284,7 +284,7 @@
             return `<li><a class="card card-link ex-card ${complete ? 'complete' : ''}" href="#/session/${i}">
               <div class="ex-ring ${complete ? 'on' : ''}">${complete ? icon('check') : `${d}/${e.sets.length}`}</div>
               <div class="grow">
-                <b>${esc(M.exLabel(e))}</b>
+                <b>${esc(M.exLabel(e))}</b>${M.equipLabel(e) ? `<span class="equip-tag">${M.equipLabel(e)}</span>` : ''}
                 <div class="muted sm">${e.target ? `${e.target.sets} × ${e.target.repMin}–${e.target.repMax}` : `${e.sets.length} sarjaa`}${prev ? ' · ed. ' + esc(F.setsSummary(prev.sets)) : ''}</div>
               </div>${icon('chevron', 'muted')}</a></li>`;
           }).join('')}
