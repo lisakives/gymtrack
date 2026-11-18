@@ -1,0 +1,5 @@
+// GymTrack – yhteiset asetukset sovellukselle ja widgeteille.
+//
+// Sovelluksen tunnisteen alku. Jos Xcode ilmoittaa, että tunniste on jo käytössä
+// ("is not available" / "cannot be registered"), vaihda tähän jokin oma, esim. com.etunimisukunimi
+GT_BUNDLE_PREFIX = com.lisakives

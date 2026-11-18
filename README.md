@@ -72,10 +72,12 @@ gymtrack/
     ├── account.js         Tilin näkymät: luo tili, kirjaudu, unohtuiko salasana, versiot
     ├── authgate.js        Kirjautumissivu latausnäytön jälkeen (salasana, Face ID, Google)
     ├── splash.js          Animoitu latausnäyttö
+    ├── native.js          Silta iPhone-sovellukseen (widgetit, ilmoitukset)
     └── app.js             Reititys, toiminnot, lepoajastin
 push-server/               Push-palvelin, tilit ja varmuuskopiot (Cloudflare Worker), testit
 .github/workflows/         Push-palvelimen automaattinen käyttöönotto
 tests/e2e.mjs              Selaintestit
+ios/                       iPhone-sovellus ja widgetit (Xcode-projekti, ks. alla)
 ```
 
 ## Käynnistys tietokoneella
@@ -106,6 +108,72 @@ Sovellus aukeaa nyt kotinäytöltä koko näytön tilassa omana sovelluksenaan. 
 **Päivitykset:** kun muutat tiedostoja, kasvata `sw.js`-tiedoston `VERSION`-arvoa (esim. `gymtrack-v5`), jotta puhelin hakee uuden version.
 
 ## Tietojen säilyminen: käyttäjätili ja automaattinen pilvivarmuuskopio
+## iPhone-sovellus ja kotinäytön widgetit (Xcode)
+
+`ios/`-kansiossa on Xcode-projekti, joka tekee GymTrackista oikean iPhone-sovelluksen. Sovelluksessa on sama käyttöliittymä kuin verkkosovelluksessa, ja lisäksi:
+
+- **Widgetit kotinäyttöön ja Tänään-näkymään** (pyyhkäise kotinäytöllä oikealle):
+  - *Päivän yhteenveto* (keskikokoinen ja iso): kalorit, proteiini ja tehtävät renkaina, ateriat, viikon treenit, paino ja seuraava muistutus.
+  - *Ravinto* (pieni ja keskikokoinen): päivän kalorit renkaana, proteiini, hiilihydraatit ja rasva suhteessa tavoitteisiin.
+  - *Päivän tehtävät* (pieni, keskikokoinen ja iso): suoritusprosentti, seuraava muistutus ja tehtävälista. Tehtävän voi kuitata tehdyksi suoraan widgetistä napauttamalla ympyrää.
+  - *Treeni* (pieni ja keskikokoinen): seuraava treeni viikko-ohjelman mukaan ja viikon treenipäivät pallukoina.
+  - *Paino* (pieni ja keskikokoinen): viimeisin paino, muutos edellisestä ja kehitys käyränä tavoiteviivan kanssa.
+  - *Pikatoiminnot* (keskikokoinen): Ateria, Treeni, Punnitus ja Tehtävät yhdellä napautuksella, jokaisen alla päivän tilanne.
+- **Lukitusnäyttö**: kalorimittari, tehtävämittari, seuraava muistutus, seuraava treeni ja painokäyrä.
+- **Käynnissä oleva treeni lukitusnäytöllä ja ilmoituskeskuksessa** (Live Activity, Dynamic Islandissa iPhone 14 Pro ja uudemmat): treenin kesto, tehdyt sarjat, nykyinen liike ja lepoajastin, joka laskee alaspäin myös puhelimen ollessa lukittuna. Lepoajan päättymisestä tulee ilmoitus.
+- **Muistutukset iPhonen omina ilmoituksina**: push-palvelinta ei tarvita. Ilmoituksessa on painikkeet *Tehty* ja *Torkuta 10 min* (paina ilmoitusta pitkään).
+- Widgetit päivittyvät aina, kun kirjaat jotain sovellukseen, ja seuraava muistutus vaihtuu widgetissä itsestään ajan kuluessa. Keskiyöllä widget siirtyy uuteen päivään.
+- Sovellus toimii kokonaan ilman verkkoyhteyttä (vain ruokahaku Open Food Factsista tarvitsee verkon).
+
+### Mitä tarvitaan
+
+- **Mac**, johon on asennettu **Xcode** (ilmainen, Mac App Storesta). Ilman Macia sovellusta ei voi asentaa.
+- iPhone, jossa on **iOS 17** tai uudempi, ja USB-kaapeli.
+- Apple ID. Ilmainen riittää, mutta silloin sovellus pitää asentaa uudelleen Xcodesta **7 päivän välein** (ks. alla).
+
+### Asennus vaihe vaiheelta
+
+1. **Lataa koodi Macille**: GitHubissa repositorion etusivulla *Code → Download ZIP*. Pura ZIP-tiedosto (tuplaklikkaus).
+2. **Avaa projekti**: avaa purettu kansio ja sieltä `ios` → tuplaklikkaa `GymTrack.xcodeproj`. Xcode aukeaa.
+3. **Kirjaudu Apple ID:llä**: Xcoden valikosta *Xcode → Settings… → Accounts* → vasemmasta alakulmasta **+** → *Apple ID* → kirjaudu.
+4. **Valitse allekirjoitus**: vasemmasta reunasta ylin rivi **GymTrack** (sininen kuvake) → keskeltä välilehti **Signing & Capabilities**.
+   - Valitse *TARGETS*-listasta **GymTrack** ja kohtaan **Team** oma nimesi (*Personal Team*).
+   - Valitse sitten *TARGETS*-listasta **GymTrackWidgetExtension** ja valitse sama **Team**.
+5. **iPhonen kehittäjätila**: liitä iPhone kaapelilla Maciin ja napauta iPhonessa *Luota tähän tietokoneeseen*. iPhonessa *Asetukset → Tietosuoja ja turvallisuus → Kehittäjätila* → päälle → iPhone käynnistyy uudelleen → vahvista *Laita päälle*. (Kehittäjätila-kohta tulee näkyviin vasta, kun iPhone on ollut kytkettynä Xcodeen.)
+6. **Asenna**: valitse Xcoden yläpalkin keskeltä laitteeksi oma iPhonesi ja paina vasemmalla ylhäällä **▶**-painiketta. Ensimmäinen käännös kestää muutaman minuutin.
+7. **Luota kehittäjään** (vain ensimmäisellä kerralla): jos iPhone sanoo *Epäluotettu kehittäjä*, avaa *Asetukset → Yleiset → VPN ja laitehallinta* → oma Apple ID → **Luota**. Paina sitten Xcodessa ▶ uudelleen.
+8. **Kirjaudu, niin tiedot siirtyvät**: sovellus aukeaa kirjautumissivulle. Kirjaudu samalla **käyttäjänimellä ja salasanalla** kuin verkkosovelluksessa, niin kaikki tiedot palautuvat pilvivarmuuskopiosta. iPhone tarjoaa tallennettua salasanaa ja täyttää sen Face ID:llä.
+   - Face ID -pääsyavain ja Google-kirjautuminen toimivat vain verkkosovelluksessa (ne on sidottu verkkosivun osoitteeseen), joten sovelluksessa niiden painikkeita ei näytetä.
+   - Jos et ole luonut tiliä: vanhassa verkkosovelluksessa *Tänään* → rataskuvake → **Vie tiedot (JSON)** → *Tallenna Tiedostot-appiin*, ja uudessa sovelluksessa samasta näkymästä **Palauta varmuuskopiosta**.
+9. **Ilmoitukset**: uudessa sovelluksessa *Muistutukset → Ilmoitukset → Ota ilmoitukset käyttöön* → *Salli*. Poista samalla vanhan verkkosovelluksen ilmoitukset käytöstä (tai poista sen kuvake kotinäytöltä), ettei muistutuksia tule kahteen kertaan.
+10. **Lisää widgetit**: paina kotinäytön tyhjää kohtaa pitkään → vasemmasta yläkulmasta **Muokkaa** → **Lisää widget** → etsi **GymTrack** → valitse koko → *Lisää widget*. Tänään-näkymään (ilmoituskeskuksen vieressä): pyyhkäise kotinäytöllä oikealle → vieritä alas → **Muokkaa** → **Lisää widget**. Lukitusnäytön widgetit: paina lukitusnäyttöä pitkään → *Muokkaa* → *Lukitusnäyttö* → napauta widgettialuetta. Treenin Live Activity tulee lukitusnäytölle itsestään, kun aloitat treenin (sen voi kytkeä pois: *Asetukset → GymTrack → Live Activity*).
+
+### Hyvä tietää
+
+- **7 päivän raja (ilmainen Apple ID)**: Applen sääntöjen mukaan ilmaisella tunnuksella asennettu sovellus lakkaa aukeamasta 7 päivän päästä. Kytke iPhone Maciin ja paina Xcodessa ▶ uudelleen, niin se toimii taas 7 päivää. **Tiedot säilyvät**, kun asennat vanhan päälle. Älä poista sovellusta puhelimesta, koska silloin sen tiedot poistuvat. Maksullisella Apple Developer -jäsenyydellä (99 €/vuosi) asennus on voimassa vuoden.
+- **Päivitykset**: sovellus käyttää repositorion verkkosovellustiedostoja (`index.html`, `styles.css`, `js/`). Kun koodi päivittyy, lataa uusi versio ja paina Xcodessa ▶.
+- **Varmuuskopio**: ota silti välillä varmuuskopio (*Vie tiedot*). Sovellus pitää lisäksi omaa varakopiota tiedoista ja palauttaa sen automaattisesti, jos selaintallennus joskus tyhjenisi.
+
+### Jos jokin menee pieleen
+
+- **"Failed to register bundle identifier" tai "… is not available"**: tunniste on jo jonkun muun käytössä. Avaa Xcodessa vasemmalta `Config` → `Shared.xcconfig` ja vaihda rivin `GT_BUNDLE_PREFIX = com.lisakives` loppuun jokin oma, esim. `com.etunimisukunimi`. Paina ▶ uudelleen.
+- **Punainen virhe Signing & Capabilities -välilehdellä**: tarkista, että Team on valittu *molemmille* kohteille (GymTrack ja GymTrackWidgetExtension), ja napauta virheen vieressä *Try Again*.
+- **Widget sanoo "Avaa GymTrack kerran"**: avaa sovellus, odota hetki ja palaa kotinäytölle. Sovellus ja widgetit jakavat tiedot yhteisen avainnipun (*Keychain Sharing*) kautta, joka toimii myös ilmaisella Apple ID:llä.
+- **"Could not launch" / laite lukittuna**: avaa iPhonen lukitus ja paina ▶ uudelleen.
+- **Widget näyttää vanhoja tietoja**: avaa sovellus hetkeksi, niin widget päivittyy.
+- **Ilmainen tunnus**: samalla tunnuksella voi olla asennettuna enintään 3 omaa sovellusta kerrallaan.
+
+### Tekninen toteutus
+
+- `ios/GymTrack/`: SwiftUI-sovellus, joka näyttää verkkosovelluksen `WKWebView`-näkymässä. Tiedostot kopioidaan sovelluksen sisään käännöksen aikana (*Kopioi verkkosovellus* -vaihe) ja tarjoillaan osoitteesta `gtapp://localhost/`, joten tallennus (localStorage) on pysyvä ja toimii ilman verkkoa.
+- `js/native.js`: silta sovellukseen. Lähettää jokaisen tallennuksen jälkeen widgetin tiedot, seuraavan 7 päivän muistutukset ja varmuuskopion. Selaimessa moduuli ei tee mitään.
+- `ios/Shared/`: yhteinen tallennus sovelluksen ja widgettien välillä (jaettu avainnippu, koska ilmainen Apple ID ei voi käyttää App Groupeja), widgetin tietomalli ja värit.
+- `ios/GymTrackWidget/`: WidgetKit-laajennus (kuusi widgettiä ja Live Activity) ja `CompleteTaskIntent` (tehtävän kuittaus widgetistä). Widgetistä tai ilmoituksesta tehdyt kuittaukset jäävät jonoon ja siirtyvät sovelluksen tietoihin seuraavalla avauksella.
+- `ios/Shared/WorkoutActivity.swift` ja `ios/GymTrack/LiveWorkout.swift`: käynnissä olevan treenin Live Activity (ActivityKit) ja lepoajan päättymisilmoitus.
+- `ios/Design/GymTrack-logo.svg`: sovelluksen logo (edistymisrengas ja käsipaino). Samaa kuvaa käytetään verkkosovelluksen kuvakkeissa, latausnäytössä ja kirjautumissivulla.
+- Syvälinkit: `gymtrack://today`, `food`, `reminders`, `task/<id>`, `workout`, `session`, `body`, `progress`.
+
+## Tietojen säilyminen ja varmuuskopiot
 
 - Kaikki muutokset tallentuvat heti puhelimeen (myös kesken treenin ja sovelluksen sulkeutuessa).
 - **Luo tili** (*Asetukset → Tili ja pilvivarmuuskopio → Luo tili*): käyttäjänimi ja salasana. Sen jälkeen tiedot varmuuskopioituvat pilveen itsestään muutaman sekunnin kuluttua jokaisesta muutoksesta ja aina kun sovellus suljetaan.

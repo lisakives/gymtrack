@@ -1,0 +1,39 @@
+name: iOS-käännöksen tarkistus
+
+# Varmistaa, että Xcode-projekti kääntyy (ilman allekirjoitusta) aina kun iOS-koodi muuttuu.
+on:
+  pull_request:
+    paths: ['ios/**', 'js/native.js', '.github/workflows/ios-build.yml']
+  push:
+    branches: [main]
+    paths: ['ios/**', 'js/native.js', '.github/workflows/ios-build.yml']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Xcode-versio
+        run: xcodebuild -version
+      - name: Käännä sovellus ja widgetit
+        working-directory: ios
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project GymTrack.xcodeproj \
+            -scheme GymTrack \
+            -configuration Debug \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            | tail -n 80
+      - name: Tarkista paketin sisältö
+        working-directory: ios
+        run: |
+          APP=build/Build/Products/Debug-iphoneos/GymTrack.app
+          test -f "$APP/web/index.html"
+          test -f "$APP/web/js/native.js"
+          test -d "$APP/PlugIns/GymTrackWidgetExtension.appex"
+          ls "$APP" "$APP/PlugIns"

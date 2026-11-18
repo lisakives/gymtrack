@@ -49,7 +49,7 @@
       ${c.needsLogin ? `<button class="btn btn-primary btn-block" data-action="acc-relogin">Kirjaudu uudelleen</button>` : `<button class="btn btn-soft btn-block" data-action="acc-sync">${icon('upload')} Varmuuskopioi nyt</button>`}
       <button class="btn btn-soft btn-block" data-action="acc-versions">${icon('history')} Palauta aiempi versio</button>
       <div class="card-label mt">Kirjautumistavat</div>
-      ${window.PublicKeyCredential ? (S().account.passkey
+      ${window.PublicKeyCredential && !GT.NATIVE ? (S().account.passkey
         ? `<div class="method-row">${icon('lock')}<span class="grow">Face ID</span><span class="badge ok">Käytössä</span></div>`
         : `<button class="btn btn-soft btn-block" data-action="acc-passkey">${icon('lock')} Ota Face ID -kirjautuminen käyttöön</button>`) : ''}
       ${C.googleReady() ? (S().account.google
