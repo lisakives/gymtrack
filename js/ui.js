@@ -5,6 +5,9 @@
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   const P = {
+    cloud: '<path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 8.5a4.5 4.5 0 0 1-.5 9.5z"/>',
+    lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+    user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
     home: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
     dumbbell: '<path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/>',
     history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/>',
@@ -123,7 +126,7 @@
         return `<label class="field"><span>${fl.label}</span><textarea id="${id}" name="${fl.name}" rows="3" placeholder="${esc(fl.placeholder || '')}">${esc(fl.value || '')}</textarea></label>`;
       }
       const num = fl.type === 'number';
-      return `<label class="field ${fl.half ? 'half' : fl.third ? 'third' : ''}"><span>${fl.label}</span><input id="${id}" name="${fl.name}" type="${num ? 'text' : (fl.type || 'text')}" ${num ? `inputmode="${fl.int ? 'numeric' : 'decimal'}"` : ''} value="${esc(fl.value ?? '')}" placeholder="${esc(fl.placeholder || '')}" ${fl.required ? 'required' : ''} autocomplete="off"></label>`;
+      return `<label class="field ${fl.half ? 'half' : fl.third ? 'third' : ''}"><span>${fl.label}</span><input id="${id}" name="${fl.name}" type="${num ? 'text' : (fl.type || 'text')}" ${num ? `inputmode="${fl.int ? 'numeric' : 'decimal'}"` : ''} value="${esc(fl.value ?? '')}" placeholder="${esc(fl.placeholder || '')}" ${fl.required ? 'required' : ''} autocomplete="${fl.autocomplete || 'off'}" ${fl.attrs || ''}>${fl.hint ? `<small class="muted sm">${fl.hint}</small>` : ''}</label>`;
     }).join('');
     return new Promise(resolve => {
       sheet(`<form class="sheet-form" novalidate>

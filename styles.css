@@ -912,3 +912,64 @@ body { background: var(--bg); }
 .barcode-row .code { flex: 1; min-width: 0; height: 44px; border-radius: 13px; border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--text); font-size: 16px; padding: 0 12px; outline: none; -webkit-appearance: none; }
 .barcode-row .btn { height: 44px; padding: 0 16px; }
 .food-sheet .src { margin: 6px 2px 0; font-size: 11.5px; }
+
+/* ---------- Tili ja pilvivarmuuskopio ---------- */
+.cloud-card { display: flex; flex-direction: column; gap: 10px; }
+.cloud-card p { margin: 0; }
+.cloud-card p .ic { width: 14px; height: 14px; vertical-align: -2px; }
+.cloud-head { display: flex; align-items: center; gap: 12px; }
+.cloud-head > .ic { width: 28px; height: 28px; color: var(--accent); flex: none; }
+.cloud-head b { display: block; font-size: 15px; }
+.warn-text { color: var(--bad); }
+.cloud-banner { border-color: var(--border-strong); background: var(--surface); }
+.cloud-banner > .ic { color: var(--accent); animation: none; }
+.cloud-banner a { color: inherit; text-decoration: none; }
+.recovery-code { font: 600 20px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .06em; text-align: center; padding: 16px 10px; margin: 6px 0 4px; border-radius: 14px; background: var(--surface-2); border: 1px dashed var(--border-strong); user-select: all; -webkit-user-select: all; word-break: break-all; }
+.field small { display: block; margin-top: 4px; }
+
+/* ---------- Latausnäyttö ---------- */
+#splash { position: fixed; inset: 0; z-index: 9999; background: radial-gradient(120% 70% at 50% 35%, #2a0d0e 0%, var(--bg) 60%); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; transition: opacity .45s var(--ease), visibility .45s; }
+#splash.out { opacity: 0; visibility: hidden; }
+#splash .sp-logo { width: 84px; height: 84px; border-radius: 24px; background: var(--accent); display: grid; place-items: center; box-shadow: 0 18px 50px -12px rgba(229,57,59,.65); animation: spPop .7s var(--ease) both, spPulse 1.6s ease-in-out .7s infinite; }
+#splash .sp-logo svg { width: 48px; height: 48px; fill: none; stroke: #fff; stroke-width: 2.2; stroke-linecap: round; }
+#splash .sp-word { font: 800 34px/1 "Barlow Condensed", var(--font-display); letter-spacing: .14em; color: var(--text); animation: spUp .6s var(--ease) .15s both; }
+#splash .sp-word span { color: var(--accent); }
+#splash .sp-bar { width: 120px; height: 3px; border-radius: 3px; background: var(--surface-3); overflow: hidden; animation: spUp .6s var(--ease) .25s both; }
+#splash .sp-bar i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 3px; animation: spLoad 1.3s var(--ease) .3s forwards; }
+@keyframes spPop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes spPulse { 50% { transform: scale(1.05); } }
+@keyframes spUp { from { transform: translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes spLoad { to { width: 100%; } }
+@media (prefers-reduced-motion: reduce) { #splash * { animation: none !important; } #splash .sp-bar i { width: 100%; } }
+
+/* ---------- Kirjautumissivu ---------- */
+#authgate { position: fixed; inset: 0; z-index: 9000; overflow-y: auto; -webkit-overflow-scrolling: touch; background: radial-gradient(120% 60% at 50% 0%, #2a0d0e 0%, var(--bg) 55%); transition: opacity .4s var(--ease), visibility .4s; padding: calc(env(safe-area-inset-top) + 36px) 20px calc(env(safe-area-inset-bottom) + 24px); }
+#authgate.out { opacity: 0; visibility: hidden; }
+#authgate .ag-inner { max-width: 420px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; animation: spUp .5s var(--ease) both; }
+#authgate .ag-head { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+#authgate .ag-logo { width: 64px; height: 64px; border-radius: 19px; background: var(--accent); display: grid; place-items: center; box-shadow: 0 14px 40px -12px rgba(229,57,59,.65); }
+#authgate .ag-logo svg { width: 36px; height: 36px; fill: none; stroke: #fff; stroke-width: 2.2; stroke-linecap: round; }
+#authgate .ag-word { font: 800 28px/1 "Barlow Condensed", var(--font-display); letter-spacing: .14em; color: var(--text); }
+#authgate .ag-word span { color: var(--accent); }
+#authgate .ag-lead { text-align: center; color: var(--muted); font-size: 15px; margin: 0; }
+#authgate .ag-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--border); }
+#authgate .ag-tabs button { height: 40px; border: 0; border-radius: 10px; background: transparent; color: var(--muted); font: 600 15px var(--font); cursor: pointer; }
+#authgate .ag-tabs button.on { background: var(--surface-3); color: var(--text); }
+#authgate .ag-form { display: flex; flex-direction: column; gap: 12px; padding: 18px; border-radius: 20px; background: var(--surface); border: 1px solid var(--border); }
+#authgate .ag-form p { margin: 0; }
+#authgate .ag-title { font-size: 22px; }
+#authgate .field input { width: 100%; }
+#authgate .ag-privacy { text-align: center; margin: 0; }
+#authgate .ag-privacy .ic { width: 14px; height: 14px; vertical-align: -2px; }
+#authgate .ag-skip { color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { #authgate .ag-inner { animation: none; } }
+#authgate .ag-or { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 13px; margin: 2px 0 12px; }
+#authgate .ag-or::before, #authgate .ag-or::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+#authgate .ag-alt { display: flex; flex-direction: column; gap: 10px; }
+#authgate .ag-alt[hidden], #authgate [hidden] { display: none !important; }
+.g-btn { display: flex; justify-content: center; min-height: 44px; }
+.g-btn[hidden] { display: none; }
+.method-row { display: flex; align-items: center; gap: 10px; padding: 6px 2px; font-size: 15px; }
+.method-row .ic { width: 20px; height: 20px; }
+.g-logo { width: 18px; height: 18px; vertical-align: -3px; }
+.card-label.mt { margin-top: 6px; margin-bottom: 0; }

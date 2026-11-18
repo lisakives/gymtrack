@@ -738,9 +738,11 @@
           <label class="toggle"><span>Käynnistä automaattisesti, kun sarja merkitään tehdyksi</span><input type="checkbox" data-bind="auto-rest" ${s.autoRest ? 'checked' : ''}><i></i></label>
           <label class="toggle"><span>Äänimerkki levon päättyessä</span><input type="checkbox" data-bind="rest-sound" ${s.sound ? 'checked' : ''}><i></i></label>
         </section>
-        <div class="section-title">Varmuuskopio</div>
+        <div class="section-title">Tili ja pilvivarmuuskopio</div>
+        ${GT.accountView ? GT.accountView.section() : ''}
+        <div class="section-title">Varmuuskopio tiedostona</div>
         <section class="card">
-          <p class="muted sm">Tiedot tallentuvat automaattisesti tähän laitteeseen. Ota säännöllisesti varmuuskopio, jotta tiedot säilyvät myös laitteen vaihtuessa.</p>
+          <p class="muted sm">Tiedot tallentuvat automaattisesti tähän laitteeseen${GT.cloud && GT.cloud.loggedIn() ? ' ja salattuna pilveen' : ''}. Voit myös siirtää ne tiedostona.</p>
           <button class="btn btn-soft btn-block" data-action="export">${icon('download')} Vie tiedot (JSON)</button>
           <label class="btn btn-soft btn-block file-btn">${icon('upload')} Palauta varmuuskopiosta<input type="file" accept="application/json,.json" data-bind="import-file"></label>
           <p class="muted sm center">${st.sessions.filter(x => x.endedAt).length} treeniä · ${st.measurements.length} mittausta · ${st.food ? st.food.entries.length : 0} ruokakirjausta · ${(size / 1024).toFixed(1)} kt</p>

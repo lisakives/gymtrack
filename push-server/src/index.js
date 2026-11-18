@@ -12,6 +12,7 @@
  * VAPID-avaimet luodaan automaattisesti ensimmäisellä käyttökerralla ja
  * tallennetaan tietokantaan.
  */
+import { handleCloud } from './cloud.js';
 
 const enc = new TextEncoder();
 
@@ -319,7 +320,7 @@ async function handle(request, env) {
   if (request.method === 'GET' && (path === '/' || path === '/api/health')) {
     await ensureSchema(env);
     const last = await env.DB.prepare('SELECT v FROM meta WHERE k = ?').bind('lastRun').first();
-    return json({ ok: true, app: 'gymtrack-push', lastRun: last ? +last.v : null, now: Date.now() });
+    return json({ ok: true, app: 'gymtrack-push', lastRun: last ? +last.v : null, now: Date.now(), googleClientId: env.GOOGLE_CLIENT_ID || null });
   }
   if (request.method === 'GET' && path === '/api/vapid') {
     const v = await getVapid(env);
@@ -330,6 +331,9 @@ async function handle(request, env) {
   let body;
   try { body = await request.json(); } catch (e) { return json({ error: 'Virheellinen JSON' }, 400); }
   await ensureSchema(env);
+
+  const cloud = await handleCloud(path, body, env, auth);
+  if (cloud) return json(cloud, cloud.status || 200);
 
   if (path === '/api/subscribe') {
     const user = await auth(env, body, true);

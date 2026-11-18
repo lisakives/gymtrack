@@ -41,8 +41,9 @@ Palvelimen osoitteen voi asettaa myös käsin: *Muistutukset → Ilmoitukset →
 ## Testit
 
 ```bash
-cd push-server && npm test        # salaus (RFC 8291 -testivektori), VAPID, ajastus, torkut, tilaukset
+cd push-server && npm test        # salaus (RFC 8291 -testivektori), VAPID, ajastus, torkut, tilaukset, tilit, varmuuskopiot
 python3 -m http.server 8000       # repositorion juuressa
+node tests/dev-server.mjs         # paikallinen palvelin (Worker Nodessa, ei vaadi Cloudflarea)
 node tests/e2e.mjs                # selaintestit iPhone-näkymässä (Playwright)
 ```
 
@@ -67,9 +68,13 @@ gymtrack/
     ├── push.js            Ilmoitusluvat, push-tilaus, synkronointi palvelimelle
     ├── lifeviews.js       Tänään-, Ruoka-, Muistutus-, Ilmoitus- ja raporttinäkymät
     ├── lifeactions.js     Edellisten toiminnot
+    ├── cloud.js           Salaus, käyttäjätili ja automaattinen pilvivarmuuskopio
+    ├── account.js         Tilin näkymät: luo tili, kirjaudu, unohtuiko salasana, versiot
+    ├── authgate.js        Kirjautumissivu latausnäytön jälkeen (salasana, Face ID, Google)
+    ├── splash.js          Animoitu latausnäyttö
     ├── native.js          Silta iPhone-sovellukseen (widgetit, ilmoitukset)
     └── app.js             Reititys, toiminnot, lepoajastin
-push-server/               Push-palvelin (Cloudflare Worker), testit
+push-server/               Push-palvelin, tilit ja varmuuskopiot (Cloudflare Worker), testit
 .github/workflows/         Push-palvelimen automaattinen käyttöönotto
 tests/e2e.mjs              Selaintestit
 ios/                       iPhone-sovellus ja widgetit (Xcode-projekti, ks. alla)
@@ -102,6 +107,7 @@ Sovellus aukeaa nyt kotinäytöltä koko näytön tilassa omana sovelluksenaan. 
 
 **Päivitykset:** kun muutat tiedostoja, kasvata `sw.js`-tiedoston `VERSION`-arvoa (esim. `gymtrack-v5`), jotta puhelin hakee uuden version.
 
+## Tietojen säilyminen: käyttäjätili ja automaattinen pilvivarmuuskopio
 ## iPhone-sovellus ja kotinäytön widgetit (Xcode)
 
 `ios/`-kansiossa on Xcode-projekti, joka tekee GymTrackista oikean iPhone-sovelluksen. Sovelluksessa on sama käyttöliittymä kuin verkkosovelluksessa, ja lisäksi:
@@ -163,9 +169,32 @@ Sovellus aukeaa nyt kotinäytöltä koko näytön tilassa omana sovelluksenaan. 
 
 ## Tietojen säilyminen ja varmuuskopiot
 
-- Kaikki muutokset tallentuvat automaattisesti heti (myös kesken treenin ja sovelluksen sulkeutuessa).
-- Tiedot ovat laitekohtaisia: kotinäytön sovelluksella ja Safarilla on iPhonessa eri tallennustila.
-- Ota varmuuskopio säännöllisesti: *Etusivu → rataskuvake → Vie tiedot (JSON)*. Samasta näkymästä tiedot palautetaan tiedostosta.
+- Kaikki muutokset tallentuvat heti puhelimeen (myös kesken treenin ja sovelluksen sulkeutuessa).
+- **Luo tili** (*Asetukset → Tili ja pilvivarmuuskopio → Luo tili*): käyttäjänimi ja salasana. Sen jälkeen tiedot varmuuskopioituvat pilveen itsestään muutaman sekunnin kuluttua jokaisesta muutoksesta ja aina kun sovellus suljetaan.
+- **Uusi puhelin**: asenna sovellus ja kirjaudu samalla käyttäjänimellä ja salasanalla, niin kaikki tiedot palautuvat. Jos käytössä on kaksi laitetta, toisen laitteen muutokset haetaan automaattisesti sovellusta avattaessa.
+- **Unohtuiko salasana?** Tiliä luodessa näytetään kerran 20-merkkinen palautuskoodi. Tallenna se salasanojen hallintaan tai kuvakaappauksena. Koodilla voi asettaa uuden salasanan; muut kirjautuneet laitteet pyytävät silloin kirjautumaan uudelleen.
+- **Aiemmat versiot**: palvelin säilyttää jokaiselta päivältä päivän viimeisimmän tilan 30 päivän ajan (*Palauta aiempi versio*).
+- JSON-tiedostoon vienti ja palautus toimivat edelleen samassa näkymässä.
+
+### Pikakirjautuminen: Face ID ja Google
+
+- **Face ID**: kirjautumissivulla *Kirjaudu Face ID:llä*. Käyttöön otetaan tilin luonnin tai kirjautumisen jälkeen (tai *Asetukset → Kirjautumistavat*). Pääsyavain synkronoituu iCloud-avainnipun kautta, joten se toimii myös uudessa iPhonessa samalla Apple ID:llä. Salaus säilyy päästä päähän (pääsyavaimen PRF-laajennus, iOS 18 tai uudempi).
+- **Google**: *Jatka Googlella* luo uuden tilin tai kirjautuu tilille, johon Google on yhdistetty (*Asetukset → Yhdistä Google-tili*). Google-kirjautumisessa salausavain säilytetään palvelimella palvelimen omalla avaimella lukittuna, joten palvelin voisi teknisesti avata varmuuskopion. Googlelta tallennetaan vain tunniste, ei sähköpostia.
+- **Google-kirjautumisen käyttöönotto (kerran)**:
+  1. Avaa console.cloud.google.com → luo projekti (esim. GymTrack).
+  2. *APIs & Services → OAuth consent screen*: User type *External*, sovelluksen nimi GymTrack, tallenna. Lisää itsesi testikäyttäjäksi tai julkaise (*Publish app*).
+  3. *APIs & Services → Credentials → Create credentials → OAuth client ID*: tyyppi *Web application*, *Authorized JavaScript origins*: `https://lisakives.github.io`. Luo.
+  4. Kopioi *Client ID* (muotoa `…apps.googleusercontent.com`; se ei ole salaisuus) tiedostoon `push-server/wrangler.toml` kohtaan `GOOGLE_CLIENT_ID` ja mergeä `main`-haaraan. Työnkulku julkaisee palvelimen, ja Google-painike ilmestyy sovellukseen.
+
+### Tietosuoja
+
+- Sähköpostia tai muita henkilötietoja ei kysytä. Käyttäjänimen ei tarvitse olla oikea nimi.
+- Salasana ja palautuskoodi eivät koskaan lähde puhelimesta. Niistä johdetaan puhelimessa PBKDF2:lla (SHA-256, 150 000 kierrosta) kaksi avainta: kirjautumisavain, josta palvelin tallentaa vain suolatun tiivisteen, ja salausavain, joka ei lähde puhelimesta.
+- Tiedot pakataan ja salataan puhelimessa (AES-256-GCM) satunnaisella tietoavaimella ennen lähetystä. Palvelin (oma Cloudflare-tilisi) näkee vain salattua dataa eikä pysty lukemaan treenejä, ruokia tai mittoja.
+- Tietoavain on palvelimella vain salasanalla ja palautuskoodilla lukittuna. Siksi salasanaa ei voi palauttaa ilman palautuskoodia: jos molemmat katoavat, pilvikopiota ei voi avata (puhelimen tiedot säilyvät silti).
+- Toistuvat väärät salasanat lukitsevat tilin 15 minuutiksi.
+- *Poista tili ja pilvikopiot* poistaa tilin ja kaikki varmuuskopiot palvelimelta pysyvästi.
+- Tilit ja varmuuskopiot käyttävät samaa push-palvelinta (Worker + D1), joten erillistä käyttöönottoa ei tarvita.
 
 ## Käyttövinkit salilla
 
@@ -173,15 +202,3 @@ Sovellus aukeaa nyt kotinäytöltä koko näytön tilassa omana sovelluksenaan. 
 - Sarjan kuittaus käynnistää lepoajastimen automaattisesti (oletus 1:30, muutettavissa asetuksista). Ajastinta voi säätää ±15 s.
 - Ylätalja ja avustetut leuanvedot vuorottelevat oletuksena treenikerrasta toiseen, ja niiden tulokset seurataan erikseen.
 - Ennätykset tunnistetaan automaattisesti (suurin paino, toistoennätys samalla painolla, arvioitu 1RM Epleyn kaavalla 1–12 toiston sarjoista).
-
-## Pilvisynkronointi myöhemmin
-
-Kaikki tallennus kulkee `js/storage.js`:n `GT.Store`-olion kautta. Synkronointi lisätään rekisteröimällä adapteri:
-
-```js
-GT.Store.registerSync({
-  name: 'cloud',
-  push(state) { /* lähetä tila palvelimelle */ },
-  pull() { return fetch('/api/state').then(r => r.json()); } // valinnainen
-});
-```

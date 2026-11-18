@@ -48,7 +48,7 @@ const page = await ctx.newPage();
 // Ulkoiset ruokatietopyynnöt estetään testeissä, jotta tulokset ovat toistettavia (oikea haku testataan erikseen mockilla).
 await page.route('https://world.openfoodfacts.org/**', route => route.fulfill({ contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ count: 0, products: [], status: 0 }) }));
 const errors = [];
-page.on('pageerror', e => errors.push(e.message));
+page.on('pageerror', e => errors.push(e.message + ' @ ' + (e.stack || '').split('\n').slice(1, 3).join(' ')));
 page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|fonts\.googleapis|ERR_/.test(m.text())) errors.push(m.text()); });
 
 const shot = async name => { if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}.png`, fullPage: true }); };
@@ -58,6 +58,21 @@ const closeSheets = async () => { await page.evaluate(() => document.querySelect
 
 await page.goto(BASE);
 await page.waitForSelector('.today-top');
+console.log('Latausnäyttö ja kirjautumissivu');
+ok(await page.isVisible('#splash'), 'animoitu latausnäyttö näkyy käynnistyessä');
+await page.waitForSelector('#splash', { state: 'detached', timeout: 5000 });
+ok(await page.isVisible('#authgate'), 'latausnäytön jälkeen tulee kirjautumissivu');
+ok(await page.isVisible('#authgate .ag-tabs button.on:has-text("Kirjaudu")') && await page.isVisible('#authgate input[autocomplete="current-password"]'), 'vanhalla käyttäjällä (treenejä) avautuu Kirjaudu-välilehti');
+await page.click('#authgate [data-ag="register"]');
+ok(await page.isVisible('#authgate input[name="password2"]'), 'Luo tili -välilehti');
+await page.click('#authgate [data-ag="login"]');
+await page.click('#authgate [data-ag="forgot"]');
+ok(await page.isVisible('#authgate input[name="code"]'), 'Unohtuiko salasana? -näkymä');
+await page.click('#authgate [data-ag="login"]');
+await shot('authgate');
+await page.click('#authgate [data-ag="skip"]');
+await page.waitForSelector('#authgate', { state: 'detached' });
+ok((await state()).settings.authSkipped === true, 'Jatka ilman tiliä muistetaan');
 
 console.log('Päivitys ja vanhat tiedot');
 let st = await state();
@@ -320,6 +335,160 @@ await go('#/settings');
 await page.click('button[data-action="export"]').catch(() => {});
 const exp = await page.evaluate(() => JSON.parse(GT.Store.exportJSON()));
 ok(exp.data.food.entries.length > 0 && exp.data.reminders.length > 0, 'varmuuskopio sisältää ruoat ja muistutukset');
+
+console.log('Käyttäjätili ja salattu pilvivarmuuskopio');
+if (!pushUp) {
+  console.log('  (ohitettu: palvelin ei vastaa – käynnistä node tests/dev-server.mjs)');
+} else {
+  const uname = 'testi' + Date.now().toString(36);
+  await page.evaluate(p => GT.Store.update(s => { s.push.server = p; }), PUSH);
+  await go('#/today');
+  ok(await page.isVisible('.cloud-banner'), 'Tänään-näkymä ehdottaa tilin luontia');
+  await go('#/settings');
+  ok(await page.isVisible('text=Tallenna tiedot pilveen automaattisesti'), 'asetuksissa on tilin luonti');
+  await page.click('button[data-action="acc-register"]');
+  await page.waitForSelector('#authgate input[name="password2"]');
+  await page.fill('#authgate input[name="username"]', uname);
+  await page.fill('#authgate input[name="password"]', 'Salasana-1');
+  await page.fill('#authgate input[name="password2"]', 'eri');
+  await page.click('#authgate button[type="submit"]');
+  await page.waitForTimeout(300);
+  ok(await page.isVisible('text=Salasanat eivät täsmää'), 'eri salasanat huomataan');
+  await page.fill('#authgate input[name="password2"]', 'Salasana-1');
+  await page.click('#authgate button[type="submit"]');
+  await page.waitForSelector('.recovery-code', { timeout: 15000 });
+  const code = (await page.textContent('.recovery-code')).trim();
+  ok(/^[A-Z2-9]{5}(-[A-Z2-9]{5}){3}$/.test(code), 'palautuskoodi näytetään (' + code + ')');
+  await shot('cloud-recovery-code');
+  await page.click('[data-sheet="ok"]');
+  await page.waitForTimeout(800);
+  let cs = await page.evaluate(() => GT.cloud.status());
+  ok(cs.loggedIn && cs.username === uname && cs.lastOkAt, 'tili luotu ja ensimmäinen varmuuskopio lähetetty');
+  await go('#/settings');
+  ok(await page.isVisible('text=Automaattinen varmuuskopio päällä'), 'asetuksissa näkyy kirjautunut tila');
+  await shot('cloud-settings');
+  st = await state();
+  const idA = { userId: st.push.userId, secret: st.push.secret };
+  const raw = await (await fetch(PUSH + '/api/backup/get', { method: 'POST', body: JSON.stringify(idA) })).json();
+  ok(raw.data && !raw.data.includes('Alataljasoutu') && !Buffer.from(raw.data.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('latin1').includes('Alataljasoutu'), 'palvelimella on vain salattua dataa');
+  ok(!JSON.stringify(st).includes(code.replace(/-/g, '')) && !JSON.stringify(st).includes('Salasana-1'), 'salasanaa ja palautuskoodia ei tallenneta laitteelle');
+
+  // Automaattinen lähetys muutoksesta
+  await page.evaluate(() => GT.Store.update(s => { s.measurements.push({ id: 'm_cloud', type: 'weight', date: GT.fmt.todayISO(), value: 81.5 }); }));
+  await page.waitForTimeout(6500);
+  const head1 = await (await fetch(PUSH + '/api/backup/head', { method: 'POST', body: JSON.stringify(idA) })).json();
+  ok(head1.latest && head1.latest.hash === (await page.evaluate(() => JSON.parse(localStorage.getItem('gymtrack.cloud')).uploadedHash)), 'muutos lähetettiin automaattisesti');
+
+  // Uusi puhelin: kirjautuminen palauttaa tiedot
+  const ctxB = await browser.newContext({ ...devices['iPhone 13'] });
+  const pageB = await ctxB.newPage();
+  pageB.on('pageerror', e => errors.push('B: ' + e.message));
+  await pageB.goto(BASE);
+  await pageB.waitForSelector('.today-top');
+  await pageB.evaluate(p => GT.Store.update(s => { s.push.server = p; }), PUSH);
+  await pageB.evaluate(() => GT.authGate.open());
+  await pageB.waitForSelector('#authgate');
+  ok(await pageB.isVisible('#authgate input[name="password2"]'), 'uudella puhelimella avautuu Luo tili -välilehti');
+  await pageB.click('#authgate [data-ag="login"]');
+  await pageB.fill('#authgate input[name="username"]', uname.toUpperCase());
+  await pageB.fill('#authgate input[name="password"]', 'väärä-salasana');
+  await pageB.click('#authgate button[type="submit"]');
+  await pageB.waitForTimeout(1500);
+  ok(await pageB.isVisible('text=Väärä käyttäjänimi tai salasana') && await pageB.isVisible('#authgate'), 'väärä salasana hylätään');
+  await pageB.fill('#authgate input[name="username"]', uname);
+  await pageB.fill('#authgate input[name="password"]', 'Salasana-1');
+  await pageB.click('#authgate button[type="submit"]');
+  await pageB.waitForFunction(() => GT.Store.get().measurements.some(m => m.id === 'm_cloud'), null, { timeout: 15000 }).catch(() => {});
+  let stB = await pageB.evaluate(() => GT.Store.get());
+  ok(stB.sessions.length === (await state()).sessions.length && stB.measurements.some(m => m.id === 'm_cloud') && stB.food.entries.length === (await state()).food.entries.length, 'uusi puhelin sai kaikki tiedot kirjautumalla');
+
+  // Muutos puhelimella B näkyy puhelimella A
+  await pageB.evaluate(() => GT.Store.update(s => { s.measurements.push({ id: 'm_fromB', type: 'waist', date: GT.fmt.todayISO(), value: 87 }); }));
+  await pageB.evaluate(() => GT.cloud.upload());
+  await page.evaluate(() => GT.cloud.check());
+  ok((await state()).measurements.some(m => m.id === 'm_fromB'), 'toisen puhelimen muutos haettiin automaattisesti');
+  ok((await state()).push.endpoint === st.push.endpoint, 'pilvestä haku ei koske laitteen ilmoitusasetuksiin');
+
+  // Versiot
+  const vers = await page.evaluate(() => GT.cloud.list());
+  ok(vers.length === 1 && vers[0].day, 'päiväkohtainen versio löytyy');
+
+  // Unohtunut salasana puhelimella B
+  await pageB.evaluate(() => GT.cloud.logout());
+  await pageB.evaluate(() => { location.hash = '#/settings'; });
+  await pageB.waitForTimeout(300);
+  ok(await pageB.isVisible('button[data-action="acc-login"]'), 'uloskirjautuminen palauttaa kirjautumisnäkymän');
+  await pageB.click('button[data-action="acc-forgot"]');
+  await pageB.waitForSelector('#authgate input[name="code"]');
+  await pageB.fill('#authgate input[name="username"]', uname);
+  await pageB.fill('#authgate input[name="code"]', code.toLowerCase().replace(/-/g, ' '));
+  await pageB.fill('#authgate input[name="password"]', 'Uusi-salasana-2');
+  await pageB.fill('#authgate input[name="password2"]', 'Uusi-salasana-2');
+  await pageB.click('#authgate button[type="submit"]');
+  await pageB.waitForFunction(() => GT.cloud.status().loggedIn, null, { timeout: 15000 }).catch(() => {});
+  await pageB.waitForTimeout(500);
+  stB = await pageB.evaluate(() => GT.Store.get());
+  ok((await pageB.evaluate(() => GT.cloud.status().loggedIn)) && stB.measurements.some(m => m.id === 'm_fromB'), 'salasana vaihdettu palautuskoodilla, tiedot tallessa');
+  await pageB.evaluate(() => GT.cloud.upload(true));
+  await page.evaluate(() => GT.cloud.check());
+  ok((await page.evaluate(() => GT.cloud.status())).needsLogin, 'vanha puhelin pyytää kirjautumaan uudelleen salasanan vaihdon jälkeen');
+  await go('#/settings');
+  ok(await page.isVisible('button[data-action="acc-relogin"]'), 'kirjaudu uudelleen -painike näkyy');
+  await page.reload();
+  await page.waitForSelector('#authgate', { timeout: 5000 });
+  ok(await page.isVisible('text=Salasana on vaihdettu toisella laitteella'), 'käynnistyksessä kirjautumissivu pyytää kirjautumaan uudelleen');
+  await page.fill('#authgate input[name="password"]', 'Uusi-salasana-2');
+  await page.click('#authgate button[type="submit"]');
+  await page.waitForSelector('#authgate', { state: 'detached', timeout: 15000 }).catch(() => {});
+  await page.waitForTimeout(800);
+  await page.evaluate(() => document.querySelectorAll('.sheet [data-sheet="remote"]').forEach(b => b.click()));
+  await page.waitForTimeout(500);
+  cs = await page.evaluate(() => GT.cloud.status());
+  ok(cs.loggedIn && !cs.needsLogin && (await state()).measurements.some(m => m.id === 'm_fromB'), 'uudelleenkirjautuminen uudella salasanalla onnistui');
+  await ctxB.close();
+
+  // Face ID (pääsyavain): virtuaalinen todentaja PRF-tuella
+  const ctxC = await browser.newContext({ ...devices['iPhone 13'] });
+  const pageC = await ctxC.newPage();
+  pageC.on('pageerror', e => errors.push('C: ' + e.message));
+  const cdp = await ctxC.newCDPSession(pageC);
+  await cdp.send('WebAuthn.enable');
+  await cdp.send('WebAuthn.addVirtualAuthenticator', { options: { protocol: 'ctap2', transport: 'internal', hasResidentKey: true, hasUserVerification: true, isUserVerified: true, hasPrf: true, automaticPresenceSimulation: true } });
+  await pageC.goto(BASE);
+  await pageC.waitForSelector('#authgate');
+  await pageC.evaluate(p => GT.Store.update(s => { s.push.server = p; }), PUSH);
+  await pageC.waitForSelector('#authgate .ag-passkey:not([hidden])', { timeout: 5000 }).catch(() => {});
+  ok(await pageC.isVisible('#authgate .ag-passkey'), 'kirjautumissivulla on Kirjaudu Face ID:llä -painike');
+  const unameC = 'faceid' + Date.now().toString(36);
+  await pageC.fill('#authgate input[name="username"]', unameC);
+  await pageC.fill('#authgate input[name="password"]', 'Salasana-3');
+  await pageC.fill('#authgate input[name="password2"]', 'Salasana-3');
+  await pageC.click('#authgate button[type="submit"]');
+  await pageC.waitForSelector('.recovery-code', { timeout: 15000 });
+  await pageC.click('[data-sheet="ok"]');
+  await pageC.waitForSelector('text=Kirjaudu jatkossa Face ID:llä?', { timeout: 5000 }).catch(() => {});
+  ok(await pageC.isVisible('text=Kirjaudu jatkossa Face ID:llä?'), 'tilin luonnin jälkeen tarjotaan Face ID:tä');
+  await pageC.click('.sheet [data-sheet="ok"]');
+  await pageC.waitForFunction(() => GT.Store.get().account && GT.Store.get().account.passkey, null, { timeout: 10000 }).catch(() => {});
+  ok(await pageC.evaluate(() => !!GT.Store.get().account.passkey), 'Face ID otettu käyttöön');
+  await pageC.evaluate(() => GT.Store.update(s => { s.measurements.push({ id: 'm_faceid', type: 'weight', date: GT.fmt.todayISO(), value: 80 }); }));
+  await pageC.evaluate(() => GT.cloud.upload());
+  await pageC.evaluate(async () => { await GT.cloud.logout(); GT.Store.update(s => { s.measurements = []; }); });
+  await pageC.evaluate(() => GT.authGate.open('login'));
+  await pageC.waitForSelector('#authgate .ag-passkey:not([hidden])');
+  await pageC.click('#authgate .ag-passkey');
+  await pageC.waitForFunction(() => GT.cloud.status().loggedIn, null, { timeout: 10000 }).catch(() => {});
+  await pageC.waitForTimeout(500);
+  await pageC.evaluate(() => document.querySelectorAll('.sheet [data-sheet="remote"]').forEach(b => b.click()));
+  await pageC.waitForTimeout(500);
+  const stC = await pageC.evaluate(() => GT.Store.get());
+  ok(stC.account && stC.account.username === unameC && stC.measurements.some(m => m.id === 'm_faceid'), 'kirjautuminen Face ID:llä palautti salatut tiedot');
+  await pageC.evaluate(() => { location.hash = '#/settings'; });
+  await pageC.waitForTimeout(300);
+  ok(await pageC.isVisible('.method-row:has-text("Face ID")'), 'asetuksissa näkyy Face ID käytössä');
+  await shot('faceid-settings');
+  await ctxC.close();
+}
 
 console.log('Uudelleenlataus');
 await page.reload();
