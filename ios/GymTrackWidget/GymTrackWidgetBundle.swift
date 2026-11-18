@@ -4,8 +4,12 @@ import WidgetKit
 @main
 struct GymTrackWidgetBundle: WidgetBundle {
     var body: some Widget {
+        DashboardWidget()
         NutritionWidget()
         TasksWidget()
-        DashboardWidget()
+        TrainingWidget()
+        WeightWidget()
+        QuickActionsWidget()
+        WorkoutLiveActivity()
     }
 }

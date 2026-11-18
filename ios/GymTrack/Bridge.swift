@@ -69,6 +69,9 @@ final class Bridge: NSObject, WKScriptMessageHandler {
         if let list = body["notifications"] as? [[String: Any]] {
             Notifications.schedule(list)
         }
+        if body.keys.contains("live") {
+            LiveWorkout.update(body["live"] as? [String: Any])
+        }
         if let state = body["state"] as? String {
             StateBackup.save(state)
         }

@@ -104,7 +104,43 @@
       workoutsThisWeek: sessions.filter(s => new Date(s.startedAt) >= weekStart).length,
       lastWorkout: last ? { name: last.workoutName || 'Treeni', date: L.iso(new Date(last.startedAt)) } : null,
       nextWorkout: next,
-      trip: L.onTrip(st, t)
+      trip: L.onTrip(st, t),
+      week: weekPlan(st, t, sessions),
+      weights: weights.slice(0, 12).reverse().map(m => ({ date: m.date, value: +m.value })),
+      goalWeight: +g.weight || null
+    };
+  }
+
+  /** Viikon treenit ma–su: suunniteltu treeni ja tehdyt treenit. */
+  function weekPlan(st, t, sessions) {
+    const DAYS = ['ma', 'ti', 'ke', 'to', 'pe', 'la', 'su'];
+    const ws = L.weekStartISO(t);
+    const sched = (st.plan && st.plan.schedule) || [];
+    return DAYS.map((label, i) => {
+      const date = L.addDays(ws, i);
+      const w = sched[i] ? st.workouts.find(x => x.id === sched[i]) : null;
+      const done = sessions.filter(s => L.iso(new Date(s.startedAt)) === date);
+      return { label, date, planned: w ? w.name : null, done: done.length > 0, doneName: done.length ? (done[0].workoutName || 'Treeni') : null };
+    });
+  }
+
+  /** Käynnissä oleva treeni ja lepoajastin lukitusnäytön Live Activityyn. */
+  function liveWorkout(st) {
+    const a = M.activeSession(st);
+    if (!a) return null;
+    let done = 0, total = 0, current = null;
+    (a.exercises || []).forEach(e => {
+      const sets = e.sets || [];
+      total += sets.length;
+      const d = sets.filter(x => x.done).length;
+      done += d;
+      if (!current && d < sets.length) current = e.name;
+    });
+    const r = st.rest && st.rest.endsAt > Date.now() ? st.rest : null;
+    return {
+      id: a.id, name: a.workoutName || 'Treeni', startedAt: +new Date(a.startedAt),
+      setsDone: done, setsTotal: total, exercise: current,
+      restEndsAt: r ? r.endsAt : null, restTotal: r ? r.total : null
     };
   }
 
@@ -120,11 +156,12 @@
     if (!st) return Promise.resolve();
     const widget = widgetSnapshot(st);
     const notifications = notifOff() ? [] : upcoming(st);
-    const key = JSON.stringify({ w: { ...widget, updatedAt: 0 }, notifications });
+    const live = liveWorkout(st);
+    const key = JSON.stringify({ w: { ...widget, updatedAt: 0 }, notifications, live });
     const stateAt = st.updatedAt || null;
     if (!force && key === lastKey && stateAt === lastStateAt) return Promise.resolve();
     lastKey = key;
-    const payload = { widget, notifications };
+    const payload = { widget, notifications, live };
     if (force || stateAt !== lastStateAt) { Store.saveNow(); payload.state = JSON.stringify(S()); lastStateAt = S().updatedAt || null; }
     return call('sync', payload).catch(e => console.warn('Sovellussynkronointi epäonnistui', e));
   }
@@ -184,6 +221,16 @@
     writeSwConfig: async () => {},
     serverStatus: async () => ({})
   });
+
+  /* ---------- Kirjautuminen sovelluksessa ----------
+   * Face ID -pääsyavain ja Google-kirjautuminen on sidottu verkkosivun osoitteeseen, eikä Google salli
+   * kirjautumista sovelluksen sisäisessä selaimessa. Sovelluksessa kirjaudutaan käyttäjänimellä ja salasanalla;
+   * iPhone ehdottaa tallennettua salasanaa ja täyttää sen Face ID:llä. */
+  if (GT.cloud) {
+    GT.cloud.passkeySupported = async () => false;
+    GT.cloud.googleClientId = async () => null;
+    GT.cloud.googleReady = () => false;
+  }
 
   /* ---------- Varmuuskopion tallennus jakovalikon kautta ---------- */
   GT.saveFile = (text, filename) => { call('saveFile', { text, filename }); };

@@ -21,6 +21,21 @@ struct DayState {
     var nextWorkout: WidgetSnapshot.NextWorkout?
     var weight: WidgetSnapshot.Weight?
     var trip: Bool
+    var week: [WidgetSnapshot.WeekDay]
+    var weights: [WidgetSnapshot.WeightPoint]
+    var goalWeight: Double?
+    var lastWorkout: WidgetSnapshot.LastWorkout?
+
+    /// Painon muutos edellisestä mittauksesta
+    var weightChange: Double? {
+        guard weights.count >= 2 else { return nil }
+        return weights[weights.count - 1].value - weights[weights.count - 2].value
+    }
+    /// Onko muutos tavoitteen suuntaan (nil, jos tavoitetta ei ole)
+    var weightChangeIsGood: Bool? {
+        guard let goal = goalWeight, let change = weightChange, let current = weights.last?.value, change != 0 else { return nil }
+        return (goal - current) * change > 0 || abs(goal - current) < 0.3
+    }
 
     var tasksDone: Int { tasks.filter(\.done).count }
     var tasksTotal: Int { tasks.count }
@@ -56,6 +71,11 @@ struct DayState {
         workoutsThisWeek = s.workoutsThisWeek
         nextWorkout = s.nextWorkout
         weight = s.weight
+        // Uuden viikon alkaessa vanha viikkonäkymä piilotetaan, kunnes sovellus avataan
+        week = (s.week ?? []).contains { $0.date == today } ? (s.week ?? []) : []
+        weights = s.weights ?? []
+        goalWeight = s.goalWeight
+        lastWorkout = s.lastWorkout
     }
 
     private init(empty: Bool) {
@@ -63,6 +83,7 @@ struct DayState {
         kcal = 0; protein = 0; carbs = 0; fat = 0
         goalKcal = 2400; goalProtein = 160; goalCarbs = 250; goalFat = 80
         meals = []; tasks = []; next = nil; workoutsThisWeek = 0; nextWorkout = nil; weight = nil; trip = false
+        week = []; weights = []; goalWeight = nil; lastWorkout = nil
     }
 
     static let empty = DayState(empty: true)
@@ -91,6 +112,23 @@ struct DayState {
         d.workoutsThisWeek = 3
         d.nextWorkout = .init(name: "PUSH", label: "Huomenna")
         d.weight = .init(value: 82.1, date: d.dateISO)
+        let names: [String?] = ["PUSH", nil, "PULL", nil, "LEGS", nil, nil]
+        let monday = DateUtil.addDays(d.dateISO, -((Calendar.current.component(.weekday, from: Date()) + 5) % 7))
+        let labels = ["ma", "ti", "ke", "to", "pe", "la", "su"]
+        var week: [WidgetSnapshot.WeekDay] = []
+        for i in 0..<7 {
+            let date = DateUtil.addDays(monday, i)
+            week.append(WidgetSnapshot.WeekDay(label: labels[i], date: date, planned: names[i], done: names[i] != nil && date < d.dateISO, doneName: nil))
+        }
+        d.week = week
+        let sample: [Double] = [84.0, 83.6, 83.4, 83.1, 82.9, 82.6, 82.4, 82.1]
+        var points: [WidgetSnapshot.WeightPoint] = []
+        for (i, v) in sample.enumerated() {
+            points.append(WidgetSnapshot.WeightPoint(date: DateUtil.addDays(d.dateISO, -7 * (7 - i)), value: v))
+        }
+        d.weights = points
+        d.goalWeight = 80
+        d.lastWorkout = .init(name: "PULL", date: DateUtil.addDays(d.dateISO, -1))
         return d
     }
 }

@@ -33,6 +33,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
                                 withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        // Lepoajan päättymisen sovellus näyttää itse, kun se on auki
+        if notification.request.identifier == "rest-end" { completionHandler([]); return }
         completionHandler([.banner, .list, .sound])
     }
 
@@ -51,7 +53,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             DispatchQueue.main.async { AppModel.shared.pullActions() }
         default:
             // Ilmoitusta napautettu: avataan tehtävä Tänään-näkymään
-            let hash = rid.map { "#/today?r=" + ($0.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? $0) } ?? "#/today"
+            let hash = (content.userInfo["hash"] as? String)
+                ?? rid.map { "#/today?r=" + ($0.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? $0) } ?? "#/today"
             DispatchQueue.main.async { AppModel.shared.open(hash: hash) }
         }
         completionHandler()

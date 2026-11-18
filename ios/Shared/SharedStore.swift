@@ -46,6 +46,8 @@ struct WidgetSnapshot: Codable {
     struct Weight: Codable { var value: Double; var date: String }
     struct LastWorkout: Codable { var name: String; var date: String }
     struct NextWorkout: Codable { var name: String; var label: String }
+    struct WeekDay: Codable, Hashable { var label: String; var date: String; var planned: String?; var done: Bool; var doneName: String? }
+    struct WeightPoint: Codable, Hashable { var date: String; var value: Double }
 
     var v: Int
     var updatedAt: String
@@ -59,6 +61,10 @@ struct WidgetSnapshot: Codable {
     var lastWorkout: LastWorkout?
     var nextWorkout: NextWorkout?
     var trip: Bool
+    // Lisätty versiossa 2 (vanhemmissa tiedoissa puuttuvat)
+    var week: [WeekDay]?
+    var weights: [WeightPoint]?
+    var goalWeight: Double?
 }
 
 /// Widgetistä tai ilmoituksesta tehty kuittaus, joka viedään sovellukseen seuraavalla avauksella.

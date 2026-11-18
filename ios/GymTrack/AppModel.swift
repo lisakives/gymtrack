@@ -11,7 +11,7 @@ final class AppModel {
     /// Näkymä, joka avataan kun sivu on valmis (esim. widgetin napautus kylmäkäynnistyksessä)
     var pendingHash: String?
 
-    /// gymtrack://food, gymtrack://today, gymtrack://reminders, gymtrack://task/<id>, gymtrack://body, gymtrack://workout
+    /// gymtrack://food, today, reminders, task/<id>, body, workout, session, progress, report
     func open(url: URL) {
         guard url.scheme == "gymtrack" else { return }
         let host = url.host ?? "today"
@@ -21,6 +21,8 @@ final class AppModel {
         case "reminders": hash = "#/reminders"
         case "body": hash = "#/body"
         case "workout": hash = "#/home"
+        case "session": hash = "#/session"
+        case "progress": hash = "#/progress"
         case "report": hash = "#/report"
         case "task":
             let rid = url.pathComponents.dropFirst().first ?? ""

@@ -112,11 +112,15 @@ Sovellus aukeaa nyt kotinäytöltä koko näytön tilassa omana sovelluksenaan. 
 
 `ios/`-kansiossa on Xcode-projekti, joka tekee GymTrackista oikean iPhone-sovelluksen. Sovelluksessa on sama käyttöliittymä kuin verkkosovelluksessa, ja lisäksi:
 
-- **Kotinäytön widgetit**
+- **Widgetit kotinäyttöön ja Tänään-näkymään** (pyyhkäise kotinäytöllä oikealle):
+  - *Päivän yhteenveto* (keskikokoinen ja iso): kalorit, proteiini ja tehtävät renkaina, ateriat, viikon treenit, paino ja seuraava muistutus.
   - *Ravinto* (pieni ja keskikokoinen): päivän kalorit renkaana, proteiini, hiilihydraatit ja rasva suhteessa tavoitteisiin.
   - *Päivän tehtävät* (pieni, keskikokoinen ja iso): suoritusprosentti, seuraava muistutus ja tehtävälista. Tehtävän voi kuitata tehdyksi suoraan widgetistä napauttamalla ympyrää.
-  - *Päivän yhteenveto* (keskikokoinen ja iso): kalorit, proteiini ja tehtävät renkaina, ateriat, viikon treenit, paino ja seuraava muistutus.
-  - Lukitusnäytölle: kalorimittari, tehtävämittari, seuraava muistutus ja yhden rivin teksti.
+  - *Treeni* (pieni ja keskikokoinen): seuraava treeni viikko-ohjelman mukaan ja viikon treenipäivät pallukoina.
+  - *Paino* (pieni ja keskikokoinen): viimeisin paino, muutos edellisestä ja kehitys käyränä tavoiteviivan kanssa.
+  - *Pikatoiminnot* (keskikokoinen): Ateria, Treeni, Punnitus ja Tehtävät yhdellä napautuksella, jokaisen alla päivän tilanne.
+- **Lukitusnäyttö**: kalorimittari, tehtävämittari, seuraava muistutus, seuraava treeni ja painokäyrä.
+- **Käynnissä oleva treeni lukitusnäytöllä ja ilmoituskeskuksessa** (Live Activity, Dynamic Islandissa iPhone 14 Pro ja uudemmat): treenin kesto, tehdyt sarjat, nykyinen liike ja lepoajastin, joka laskee alaspäin myös puhelimen ollessa lukittuna. Lepoajan päättymisestä tulee ilmoitus.
 - **Muistutukset iPhonen omina ilmoituksina**: push-palvelinta ei tarvita. Ilmoituksessa on painikkeet *Tehty* ja *Torkuta 10 min* (paina ilmoitusta pitkään).
 - Widgetit päivittyvät aina, kun kirjaat jotain sovellukseen, ja seuraava muistutus vaihtuu widgetissä itsestään ajan kuluessa. Keskiyöllä widget siirtyy uuteen päivään.
 - Sovellus toimii kokonaan ilman verkkoyhteyttä (vain ruokahaku Open Food Factsista tarvitsee verkon).
@@ -138,11 +142,11 @@ Sovellus aukeaa nyt kotinäytöltä koko näytön tilassa omana sovelluksenaan. 
 5. **iPhonen kehittäjätila**: liitä iPhone kaapelilla Maciin ja napauta iPhonessa *Luota tähän tietokoneeseen*. iPhonessa *Asetukset → Tietosuoja ja turvallisuus → Kehittäjätila* → päälle → iPhone käynnistyy uudelleen → vahvista *Laita päälle*. (Kehittäjätila-kohta tulee näkyviin vasta, kun iPhone on ollut kytkettynä Xcodeen.)
 6. **Asenna**: valitse Xcoden yläpalkin keskeltä laitteeksi oma iPhonesi ja paina vasemmalla ylhäällä **▶**-painiketta. Ensimmäinen käännös kestää muutaman minuutin.
 7. **Luota kehittäjään** (vain ensimmäisellä kerralla): jos iPhone sanoo *Epäluotettu kehittäjä*, avaa *Asetukset → Yleiset → VPN ja laitehallinta* → oma Apple ID → **Luota**. Paina sitten Xcodessa ▶ uudelleen.
-8. **Siirrä vanhat tiedot**: sovelluksella on oma tallennustilansa, joten kotinäytön verkkosovelluksen tiedot eivät siirry itsestään.
-   - Avaa vanha (kotinäytön verkko-) GymTrack → *Tänään* → rataskuvake → **Vie tiedot (JSON)** → *Tallenna Tiedostot-appiin*.
-   - Avaa uusi GymTrack-sovellus → *Tänään* → rataskuvake → **Palauta varmuuskopiosta** → valitse tallentamasi tiedosto.
+8. **Kirjaudu, niin tiedot siirtyvät**: sovellus aukeaa kirjautumissivulle. Kirjaudu samalla **käyttäjänimellä ja salasanalla** kuin verkkosovelluksessa, niin kaikki tiedot palautuvat pilvivarmuuskopiosta. iPhone tarjoaa tallennettua salasanaa ja täyttää sen Face ID:llä.
+   - Face ID -pääsyavain ja Google-kirjautuminen toimivat vain verkkosovelluksessa (ne on sidottu verkkosivun osoitteeseen), joten sovelluksessa niiden painikkeita ei näytetä.
+   - Jos et ole luonut tiliä: vanhassa verkkosovelluksessa *Tänään* → rataskuvake → **Vie tiedot (JSON)** → *Tallenna Tiedostot-appiin*, ja uudessa sovelluksessa samasta näkymästä **Palauta varmuuskopiosta**.
 9. **Ilmoitukset**: uudessa sovelluksessa *Muistutukset → Ilmoitukset → Ota ilmoitukset käyttöön* → *Salli*. Poista samalla vanhan verkkosovelluksen ilmoitukset käytöstä (tai poista sen kuvake kotinäytöltä), ettei muistutuksia tule kahteen kertaan.
-10. **Lisää widgetit**: paina kotinäytön tyhjää kohtaa pitkään → vasemmasta yläkulmasta **Muokkaa** → **Lisää widget** → etsi **GymTrack** → valitse koko → *Lisää widget*. Lukitusnäytön widgetit: paina lukitusnäyttöä pitkään → *Muokkaa* → *Lukitusnäyttö* → napauta widgettialuetta.
+10. **Lisää widgetit**: paina kotinäytön tyhjää kohtaa pitkään → vasemmasta yläkulmasta **Muokkaa** → **Lisää widget** → etsi **GymTrack** → valitse koko → *Lisää widget*. Tänään-näkymään (ilmoituskeskuksen vieressä): pyyhkäise kotinäytöllä oikealle → vieritä alas → **Muokkaa** → **Lisää widget**. Lukitusnäytön widgetit: paina lukitusnäyttöä pitkään → *Muokkaa* → *Lukitusnäyttö* → napauta widgettialuetta. Treenin Live Activity tulee lukitusnäytölle itsestään, kun aloitat treenin (sen voi kytkeä pois: *Asetukset → GymTrack → Live Activity*).
 
 ### Hyvä tietää
 
@@ -164,8 +168,10 @@ Sovellus aukeaa nyt kotinäytöltä koko näytön tilassa omana sovelluksenaan. 
 - `ios/GymTrack/`: SwiftUI-sovellus, joka näyttää verkkosovelluksen `WKWebView`-näkymässä. Tiedostot kopioidaan sovelluksen sisään käännöksen aikana (*Kopioi verkkosovellus* -vaihe) ja tarjoillaan osoitteesta `gtapp://localhost/`, joten tallennus (localStorage) on pysyvä ja toimii ilman verkkoa.
 - `js/native.js`: silta sovellukseen. Lähettää jokaisen tallennuksen jälkeen widgetin tiedot, seuraavan 7 päivän muistutukset ja varmuuskopion. Selaimessa moduuli ei tee mitään.
 - `ios/Shared/`: yhteinen tallennus sovelluksen ja widgettien välillä (jaettu avainnippu, koska ilmainen Apple ID ei voi käyttää App Groupeja), widgetin tietomalli ja värit.
-- `ios/GymTrackWidget/`: WidgetKit-laajennus (kolme widgettiä) ja `CompleteTaskIntent` (tehtävän kuittaus widgetistä). Widgetistä tai ilmoituksesta tehdyt kuittaukset jäävät jonoon ja siirtyvät sovelluksen tietoihin seuraavalla avauksella.
-- Syvälinkit: `gymtrack://today`, `gymtrack://food`, `gymtrack://reminders`, `gymtrack://task/<id>`.
+- `ios/GymTrackWidget/`: WidgetKit-laajennus (kuusi widgettiä ja Live Activity) ja `CompleteTaskIntent` (tehtävän kuittaus widgetistä). Widgetistä tai ilmoituksesta tehdyt kuittaukset jäävät jonoon ja siirtyvät sovelluksen tietoihin seuraavalla avauksella.
+- `ios/Shared/WorkoutActivity.swift` ja `ios/GymTrack/LiveWorkout.swift`: käynnissä olevan treenin Live Activity (ActivityKit) ja lepoajan päättymisilmoitus.
+- `ios/Design/GymTrack-logo.svg`: sovelluksen logo (edistymisrengas ja käsipaino). Samaa kuvaa käytetään verkkosovelluksen kuvakkeissa, latausnäytössä ja kirjautumissivulla.
+- Syvälinkit: `gymtrack://today`, `food`, `reminders`, `task/<id>`, `workout`, `session`, `body`, `progress`.
 
 ## Tietojen säilyminen ja varmuuskopiot
 
