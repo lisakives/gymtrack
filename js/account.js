@@ -170,13 +170,13 @@
     render();
   }
 
-  GT.accountView = { section, banner };
+  GT.accountView = { section, banner, afterLogin, showRecoveryCode, PRIVACY };
 
   Object.assign(GT.extraActions = GT.extraActions || {}, {
-    'acc-register': () => registerFlow(),
-    'acc-login': () => loginFlow(),
-    'acc-relogin': async () => { const u = S().account && S().account.username; await C.logout(); await loginFlow(u || ''); },
-    'acc-forgot': () => forgotFlow(),
+    'acc-register': () => (GT.authGate ? GT.authGate.open('register') : registerFlow()),
+    'acc-login': () => (GT.authGate ? GT.authGate.open('login') : loginFlow()),
+    'acc-relogin': async () => { if (GT.authGate) return GT.authGate.open('login'); const u = S().account && S().account.username; await C.logout(); await loginFlow(u || ''); },
+    'acc-forgot': () => (GT.authGate ? GT.authGate.open('forgot') : forgotFlow()),
     'acc-banner-hide': () => { Store.update(s => { s.settings.cloudBannerHidden = true; }); render(); },
     'acc-sync': async () => {
       try { await C.upload(true); ui.toast('Varmuuskopioitu'); } catch (e) { err(e); }
