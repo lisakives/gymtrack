@@ -494,6 +494,10 @@ body { font-size: 15.5px; }
 .hero-list li span { flex: 1; min-width: 0; }
 .hero-list li b { font-family: var(--font-display); font-weight: 600; font-size: 17px; color: var(--muted); letter-spacing: .02em; }
 
+.swap-row { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.swap-btn { background: none; border: 0; padding: 6px 4px; font: inherit; font-size: 14px; font-weight: 550; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.swap-btn:active { color: var(--text); }
+
 /* Viikko */
 .week-top { display: flex; align-items: center; gap: 16px; }
 .ring-wrap { position: relative; width: 76px; height: 76px; flex: none; }

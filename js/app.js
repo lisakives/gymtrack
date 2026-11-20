@@ -406,6 +406,26 @@
       Store.update(s => { s.plan.schedule[d] = r === 'rest' ? null : r; });
       render();
     },
+    'swap-today': async () => {
+      const st = S();
+      const sched = M.nextScheduled(st);
+      if (!sched || sched.offset !== 0) return;
+      const cur = sched.workout.id;
+      const planned = sched.planned;
+      const r = await ui.sheet(`<h3 class="sheet-title">Treenaa tänään jotain muuta</h3>
+        <p class="sheet-text">Vaihto koskee vain tätä päivää. Viikko-ohjelma pysyy ennallaan.</p>
+        <div class="sheet-actions">
+          ${st.workouts.map(w => `<button class="btn ${cur === w.id ? 'btn-primary' : 'btn-soft'} btn-block" data-sheet="${w.id}">${ui.esc(w.name)}${w.subtitle ? ` <small style="opacity:.7;font-weight:500">· ${ui.esc(w.subtitle)}</small>` : ''}${planned && planned.id === w.id ? ' <small style="opacity:.7;font-weight:500">(ohjelma)</small>' : ''}</button>`).join('')}
+          <button class="btn btn-ghost btn-block" data-sheet="cancel">Peruuta</button></div>`);
+      if (!r || r === 'cancel' || r === cur) return;
+      Store.update(s => {
+        if (planned && r === planned.id) delete s.plan.todayOverride;
+        else s.plan.todayOverride = { date: M.dayKey(), workoutId: r };
+      });
+      const w = findWorkout(r);
+      ui.toast(planned && r === planned.id ? 'Palautettu ohjelman treeni' : `Tänään: ${ui.esc(w ? w.name : '')}`);
+      render();
+    },
     'edit-goal': async () => {
       const v = await ui.form({ title: 'Tavoite', fields: [{ name: 'goal', label: 'Ohjelman tavoite', value: S().plan.goal || '' }] });
       if (!v || v.__action) return;

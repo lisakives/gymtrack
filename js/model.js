@@ -38,6 +38,9 @@
 
   function todayIndex(d = new Date()) { return (d.getDay() + 6) % 7; }
 
+  /** Paikallinen päivämäärä muodossa VVVV-KK-PP. */
+  function dayKey(d = new Date()) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+
   /** Viikkorytmin mukainen seuraava treeni: { workout, offset, label, restToday } */
   function nextScheduled(state) {
     const plan = state.plan;
@@ -47,8 +50,12 @@
     const t = todayIndex();
     const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
     const doneToday = finishedSessions(state).filter(s => new Date(s.startedAt) >= todayStart);
-    const todayW = wOf(plan.schedule[t]);
-    if (todayW && !doneToday.some(s => s.workoutId === todayW.id)) return { workout: todayW, offset: 0, label: 'Tänään', restToday: false };
+    const planW = wOf(plan.schedule[t]);
+    // Tämän päivän vaihto ("Haluatko treenata jotain muuta?") koskee vain kyseistä päivää
+    const ov = plan.todayOverride;
+    const ovW = ov && ov.date === dayKey() ? wOf(ov.workoutId) : null;
+    const todayW = ovW || planW;
+    if (todayW && !doneToday.some(s => s.workoutId === todayW.id)) return { workout: todayW, offset: 0, label: 'Tänään', restToday: false, swapped: !!ovW && ovW !== planW, planned: planW };
     for (let i = 1; i <= 7; i++) {
       const w = wOf(plan.schedule[(t + i) % 7]);
       if (w) return { workout: w, offset: i, label: i === 1 ? 'Huomenna' : DAYS_ESS[(t + i) % 7].charAt(0).toUpperCase() + DAYS_ESS[(t + i) % 7].slice(1), restToday: !todayW, doneToday: !!todayW };
@@ -331,7 +338,7 @@
 
   window.GT = window.GT || {};
   GT.model = {
-    uid, createDefault, MEASURES, DAYS, ensurePlan, defaultPlan, nextScheduled, todayIndex, num, setLogged, exKey, exLabel, e1rm,
+    uid, createDefault, MEASURES, DAYS, ensurePlan, defaultPlan, nextScheduled, todayIndex, dayKey, num, setLogged, exKey, exLabel, e1rm,
     finishedSessions, activeSession, sessionStats, exerciseHistory, previousFor,
     computePRs, checkSetPR, allPRs, recentPRs, nextWorkout, startOfWeek,
     measurementsOf, trackableExercises, labelForKey
