@@ -170,7 +170,6 @@ Sovellus aukeaa nyt kotinäytöltä koko näytön tilassa omana sovelluksenaan. 
 - `ios/Shared/`: yhteinen tallennus sovelluksen ja widgettien välillä (jaettu avainnippu, koska ilmainen Apple ID ei voi käyttää App Groupeja), widgetin tietomalli ja värit.
 - `ios/GymTrackWidget/`: WidgetKit-laajennus (kuusi widgettiä ja Live Activity) ja `CompleteTaskIntent` (tehtävän kuittaus widgetistä). Widgetistä tai ilmoituksesta tehdyt kuittaukset jäävät jonoon ja siirtyvät sovelluksen tietoihin seuraavalla avauksella.
 - `ios/Shared/WorkoutActivity.swift` ja `ios/GymTrack/LiveWorkout.swift`: käynnissä olevan treenin Live Activity (ActivityKit) ja lepoajan päättymisilmoitus.
-- `ios/Design/GymTrack-logo.svg`: sovelluksen logo (edistymisrengas ja käsipaino). Samaa kuvaa käytetään verkkosovelluksen kuvakkeissa, latausnäytössä ja kirjautumissivulla.
 - Syvälinkit: `gymtrack://today`, `food`, `reminders`, `task/<id>`, `workout`, `session`, `body`, `progress`.
 
 ## Tietojen säilyminen ja varmuuskopiot

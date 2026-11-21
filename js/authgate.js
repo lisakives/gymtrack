@@ -21,7 +21,7 @@
 
   let el = null, mode = 'login', prefill = '';
 
-  const logo = `<div class="ag-logo"><img src="icons/icon-192.png" alt=""></div>
+  const logo = `<div class="ag-logo"><svg viewBox="0 0 24 24"><path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/></svg></div>
     <div class="ag-word">GYM<span>TRACK</span></div>`;
 
   const input = (name, label, type, ac, extra = '') =>
