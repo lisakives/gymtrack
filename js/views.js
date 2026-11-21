@@ -76,12 +76,12 @@
     const weekVolume = weekSessions.reduce((n, s) => n + M.sessionStats(s).volume, 0);
     const prCount = fin.reduce((n, s) => n + (s.prs ? s.prs.length : 0), 0);
 
-    const eyebrow = sched ? (sched.offset === 0 ? 'Tänään' : sched.restToday ? 'Lepopäivä · seuraavaksi ' + sched.label.toLowerCase() : 'Seuraavaksi · ' + sched.label.toLowerCase()) : 'Seuraava treeni';
+    const eyebrow = sched ? (sched.offset === 0 ? (sched.swapped ? 'Tänään · vaihdettu' : 'Tänään') : sched.restToday ? 'Lepopäivä · seuraavaksi ' + sched.label.toLowerCase() : 'Seuraavaksi · ' + sched.label.toLowerCase()) : 'Seuraava treeni';
     const startNow = !sched || sched.offset === 0;
 
     const days = M.DAYS.map((d, i) => {
       const date = new Date(weekStart); date.setDate(date.getDate() + i);
-      const w = st.plan ? st.workouts.find(x => x.id === st.plan.schedule[i]) : null;
+      const w = sched && sched.swapped && i === today ? sched.workout : st.plan ? st.workouts.find(x => x.id === st.plan.schedule[i]) : null;
       const doneS = weekSessions.find(s => M.todayIndex(new Date(s.startedAt)) === i);
       let cls = 'off', mark = '';
       if (doneS) { cls = 'done'; mark = icon('check'); }
@@ -120,6 +120,7 @@
           <div class="hero-sub">${esc(next.subtitle || '')}</div>
           <ol class="hero-list">${next.exercises.map(e => `<li><span>${esc(e.name)}</span><b>${e.sets}×${e.repMin}–${e.repMax}</b></li>`).join('')}</ol>
           <button class="btn ${startNow ? 'btn-primary' : 'btn-soft'} btn-block btn-lg" data-action="start-workout" data-id="${next.id}">${icon('play')} ${startNow ? 'Aloita treeni' : 'Aloita silti nyt'}</button>
+          ${sched && sched.offset === 0 && st.workouts.length > 1 ? `<div class="swap-row">${sched.swapped && sched.planned ? `<span class="muted sm">Ohjelmassa ${esc(sched.planned.name)}</span>` : ''}<button class="swap-btn" data-action="swap-today">${sched.swapped ? 'Vaihda uudelleen' : 'Haluatko treenata jotain muuta?'}</button></div>` : ''}
         </section>` : ''}
 
         <section class="card week-card">
