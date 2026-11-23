@@ -977,3 +977,38 @@ body { background: var(--bg); }
 .method-row .ic { width: 20px; height: 20px; }
 .g-logo { width: 18px; height: 18px; vertical-align: -3px; }
 .card-label.mt { margin-top: 6px; margin-bottom: 0; }
+
+/* ---------- Yazio (Apple Health) ---------- */
+.yz-pill { display: inline-block; vertical-align: 2px; margin-left: 6px; padding: 1px 7px; border-radius: 99px; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--good); background: rgba(130, 209, 174, .12); border: 1px solid rgba(130, 209, 174, .22); }
+.yz-card { display: flex; align-items: center; gap: 10px; padding: 14px 14px 14px 16px; background: linear-gradient(180deg, rgba(130, 209, 174, .07), rgba(130, 209, 174, .015)) padding-box, linear-gradient(180deg, rgba(130, 209, 174, .28), rgba(130, 209, 174, .05)) border-box; border: 1px solid transparent; }
+.yz-main { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; color: inherit; text-decoration: none; }
+.yz-main .grow { display: flex; flex-direction: column; min-width: 0; }
+.yz-main b { font-size: 15.5px; font-weight: 650; }
+.yz-sub { font-size: 12px; color: var(--faint); margin-top: 2px; }
+.yz-sub.err { color: var(--bad); }
+.yz-ic { flex: none; width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; color: var(--good); background: rgba(130, 209, 174, .12); }
+.yz-ic svg { width: 20px; height: 20px; }
+.yz-ic.lg { width: 46px; height: 46px; border-radius: 14px; }
+.yz-ic.lg svg { width: 24px; height: 24px; }
+.yz-refresh { color: var(--good); }
+.yz-refresh.busy svg { animation: yz-spin 1s linear infinite; }
+@keyframes yz-spin { to { transform: rotate(360deg); } }
+.yz-hero-top { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.yz-hero-top > div { flex: 1; }
+.yz-hero-top b { font-size: 16px; }
+.yz-state { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 99px; background: var(--surface-3); color: var(--muted); }
+.yz-state.on { color: #0a0b0d; background: var(--good); }
+.yz-days { list-style: none; margin: 0 0 10px; padding: 0; }
+.yz-days li + li { border-top: 1px solid var(--border); }
+.yz-days a { display: block; padding: 10px 0; color: inherit; text-decoration: none; }
+.yz-day-top { display: flex; justify-content: space-between; font-size: 14.5px; margin-bottom: 6px; }
+.yz-day-top span { font-weight: 650; font-variant-numeric: tabular-nums; }
+.yz-day-bar { position: relative; display: flex; height: 8px; border-radius: 99px; background: var(--surface-3); margin-bottom: 5px; }
+.yz-day-bar i { display: block; height: 100%; transition: width .5s var(--ease); }
+.yz-day-bar i:first-child { border-radius: 99px 0 0 99px; }
+.yz-day-bar i.yz, .yz-legend i.yz { background: var(--good); }
+.yz-day-bar i.own, .yz-legend i.own { background: var(--accent); }
+.yz-day-bar em { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; border-radius: 2px; background: var(--text); opacity: .55; }
+.yz-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+.yz-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.yz-legend i.goal { width: 2px; background: var(--text); opacity: .55; }

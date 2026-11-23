@@ -52,6 +52,16 @@ final class Bridge: NSObject, WKScriptMessageHandler {
             share(text: body["text"] as? String ?? "", filename: body["filename"] as? String ?? "gymtrack.json")
             replyHandler(["ok": true], nil)
 
+        case "healthAuthorize":
+            HealthNutrition.authorize { ok, error in replyHandler(["ok": ok, "available": HealthNutrition.available, "error": error ?? ""], nil) }
+
+        case "healthNutrition":
+            HealthNutrition.fetch(days: (body["days"] as? NSNumber)?.intValue ?? 7) { replyHandler($0, nil) }
+
+        case "openHealth":
+            if let url = URL(string: "x-apple-health://") { UIApplication.shared.open(url) }
+            replyHandler(["ok": true], nil)
+
         case "openSettings":
             if let url = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(url) }
             replyHandler(["ok": true], nil)
