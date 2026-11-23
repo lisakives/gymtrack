@@ -45,6 +45,7 @@ cd push-server && npm test        # salaus (RFC 8291 -testivektori), VAPID, ajas
 python3 -m http.server 8000       # repositorion juuressa
 node tests/dev-server.mjs         # paikallinen palvelin (Worker Nodessa, ei vaadi Cloudflarea)
 node tests/e2e.mjs                # selaintestit iPhone-näkymässä (Playwright)
+node tests/yazio.mjs              # Yazio/Apple Health -tuonti (ei tarvitse palvelinta)
 ```
 
 ## Tiedostot
@@ -121,6 +122,7 @@ Sovellus aukeaa nyt kotinäytöltä koko näytön tilassa omana sovelluksenaan. 
   - *Pikatoiminnot* (keskikokoinen): Ateria, Treeni, Punnitus ja Tehtävät yhdellä napautuksella, jokaisen alla päivän tilanne.
 - **Lukitusnäyttö**: kalorimittari, tehtävämittari, seuraava muistutus, seuraava treeni ja painokäyrä.
 - **Käynnissä oleva treeni lukitusnäytöllä ja ilmoituskeskuksessa** (Live Activity, Dynamic Islandissa iPhone 14 Pro ja uudemmat): treenin kesto, tehdyt sarjat, nykyinen liike ja lepoajastin, joka laskee alaspäin myös puhelimen ollessa lukittuna. Lepoajan päättymisestä tulee ilmoitus.
+- **Yazio-ateriat Apple Healthista**: *Ruoka → valikko → Yazio-yhteys → Ota Yazio-tuonti käyttöön*. Yazio kirjoittaa kalorit ja makrot Apple Healthiin, ja sovellus lukee ne sieltä aina avattaessa (viimeiset 7 päivää) ruokapäiväkirjaan omiksi riveikseen (*Yazio · Lounas*). Tuonti korvaa aina aiemmin tuodut Yazio-rivit, joten mitään ei tule kahdesti; poistettu rivi ei palaa. Rivit tallentuvat pilvitiliin, joten ne näkyvät myös verkkosovelluksessa. Yaziossa: *Profiili → Asetukset → Apple Health* → salli ravintotiedot.
 - **Muistutukset iPhonen omina ilmoituksina**: push-palvelinta ei tarvita. Ilmoituksessa on painikkeet *Tehty* ja *Torkuta 10 min* (paina ilmoitusta pitkään).
 - Widgetit päivittyvät aina, kun kirjaat jotain sovellukseen, ja seuraava muistutus vaihtuu widgetissä itsestään ajan kuluessa. Keskiyöllä widget siirtyy uuteen päivään.
 - Sovellus toimii kokonaan ilman verkkoyhteyttä (vain ruokahaku Open Food Factsista tarvitsee verkon).

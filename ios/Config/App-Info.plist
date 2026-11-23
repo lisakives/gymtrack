@@ -13,6 +13,10 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSHealthShareUsageDescription</key>
+	<string>GymTrack lukee Apple Healthista ravintotiedot (kalorit, proteiini, hiilihydraatit ja rasva), joita esimerkiksi Yazio kirjoittaa, ja näyttää ne Ruoka-näkymässä.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>GymTrack ei kirjoita tietoja Apple Healthiin.</string>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>

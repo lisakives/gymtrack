@@ -977,3 +977,7 @@ body { background: var(--bg); }
 .method-row .ic { width: 20px; height: 20px; }
 .g-logo { width: 18px; height: 18px; vertical-align: -3px; }
 .card-label.mt { margin-top: 6px; margin-bottom: 0; }
+
+/* Yazio-tuonnin tilarivi Ruoka-näkymässä */
+.yazio-bar { display: flex; align-items: center; gap: 10px; margin: -4px 4px 12px; }
+.yazio-bar a { color: var(--muted, inherit); text-decoration: none; }

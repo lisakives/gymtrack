@@ -280,20 +280,65 @@
       </main>`;
   };
 
-  GT.native = { call, _reply: reply, syncNow, applyActions, pull, upcoming, widgetSnapshot };
+  /* ---------- Yazio-ateriat Apple Healthista ---------- */
+  const yazioOn = () => !!(S() && S().food && S().food.yazio && S().food.yazio.on);
+  let lastImport = 0, importing = null;
+  function saveLast(v) { try { localStorage.setItem('gymtrack.yazio.last', JSON.stringify(v)); } catch (e) { /* */ } }
+
+  /** Hakee Apple Healthista viimeisten päivien Yazio-ateriat. Tila muuttuu vain, jos jokin oikeasti muuttui. */
+  function healthImport({ days = 7, force = false } = {}) {
+    if (importing) return importing;
+    if (!force && Date.now() - lastImport < 60000) return Promise.resolve(null);
+    lastImport = Date.now();
+    VS.yazioBusy = true;
+    if (force) GT.render && GT.render();
+    importing = call('healthNutrition', { days }).then(res => {
+      if (!res || !res.ok) throw new Error((res && res.error) || 'Apple Healthin luku epäonnistui');
+      const plan = L.planImport(S(), res);
+      if (plan.changed) { Store.update(s => L.applyImport(s, plan)); syncNow(true); }
+      const last = { at: new Date().toISOString(), count: plan.count, days: plan.days, kcal: plan.kcal, others: plan.others, changed: plan.changed };
+      saveLast(last);
+      return last;
+    }).catch(e => { const last = { at: new Date().toISOString(), error: e.message || String(e) }; saveLast(last); return last; })
+      .finally(() => { importing = null; VS.yazioBusy = false; GT.render && GT.render(); });
+    return importing;
+  }
+
+  GT.native = { call, _reply: reply, syncNow, applyActions, pull, upcoming, widgetSnapshot, healthImport };
 
   // Toiminnot, joita yleiset näkymät eivät tunne
-  GT.extraActions = Object.assign(GT.extraActions || {}, { 'native-settings': () => call('openSettings') });
+  GT.extraActions = Object.assign(GT.extraActions || {}, {
+    'native-settings': () => call('openSettings'),
+    'health-open': () => call('openHealth'),
+    'yazio-enable': async () => {
+      const r = await call('healthAuthorize').catch(e => ({ ok: false, error: e.message }));
+      if (!r || !r.ok) { GT.ui.toast(esc((r && r.error) || 'Apple Health ei ole käytettävissä'), 'error'); return; }
+      Store.update(s => { s.food.yazio = Object.assign(s.food.yazio || {}, { on: true }); });
+      const last = await healthImport({ days: 14, force: true });
+      if (last && !last.error) GT.ui.toast(last.count ? `${last.count} Yazio-ateriaa tuotu` : 'Yazio-tuonti käytössä. Ei vielä aterioita Apple Healthissa.');
+    },
+    'yazio-sync': async () => {
+      const last = await healthImport({ days: 7, force: true });
+      if (last && last.error) GT.ui.toast(esc(last.error), 'error');
+      else if (last) GT.ui.toast(last.changed ? `Päivitetty: ${last.count} Yazio-ateriaa` : 'Ajan tasalla');
+    },
+    'yazio-disable': async () => {
+      if (!(await GT.ui.confirm({ title: 'Poistetaanko Yazio-tuonti käytöstä?', text: 'Jo tuodut ateriat jäävät ruokapäiväkirjaan.', ok: 'Poista käytöstä', danger: true }))) return;
+      Store.update(s => { s.food.yazio = Object.assign(s.food.yazio || {}, { on: false }); });
+      GT.render && GT.render();
+    }
+  });
 
   // Käynnistys: haetaan odottavat kuittaukset ja lähetetään tiedot widgeteille
   const start = () => {
     status().then(() => GT.render && GT.render());
     call('ready').then(r => { if (!applyActions(r && r.actions)) syncNow(true); }).catch(() => syncNow(true));
+    if (yazioOn()) setTimeout(() => healthImport(), 800);
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(start, 50));
   else setTimeout(start, 50);
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') { pull(); status(); syncNow(); }
+    if (document.visibilityState === 'visible') { pull(); status(); syncNow(); if (yazioOn()) healthImport(); }
     else syncNow(true);
   });
   // Päivän vaihtuessa ja ajan kuluessa (seuraava muistutus) widgetin tiedot pidetään ajan tasalla

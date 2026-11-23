@@ -198,6 +198,75 @@
     });
   }
 
+  /* ---------- Tuonti Apple Healthista (Yazio) ----------
+   * iPhone-sovellus lukee Apple Healthista ravintonäytteet (ks. ios/GymTrack/HealthNutrition.swift) ja
+   * ryhmittelee ne aterioiksi. Täällä ne muutetaan ruokamerkinnöiksi (src: 'yazio'). Tuonti korvaa aina
+   * haetun aikavälin Yazio-merkinnät, joten sama ateria ei koskaan tule kahdesti. Itse kirjattuihin
+   * merkintöihin ei kosketa. Merkinnät tallentuvat pilveen kuten muutkin, joten ne näkyvät myös verkkosovelluksessa. */
+  const IMPORT_MEALS = [
+    [/breakfast|aamiai|aamupala|frühstück|desayuno|petit/i, 'm1', 'Aamiainen'],
+    [/lunch|lounas|mittag|almuerzo|déjeuner/i, 'm2', 'Lounas'],
+    [/dinner|supper|illalli|päivälli|abend|cena|dîner/i, 'm3', 'Illallinen'],
+    [/snack|välipala|zwischen|merienda|collation/i, 'snack', 'Välipala']
+  ];
+  const YAZIO_RE = /yazio/i;
+
+  function importMeal(x) {
+    const hit = IMPORT_MEALS.find(([re]) => re.test(x.foodType || ''));
+    if (hit) return { meal: hit[1], label: hit[2] };
+    const [h, m] = String(x.time || '12:00').split(':').map(Number);
+    const d = new Date(2000, 0, 1, h || 0, m || 0);
+    const meal = defaultMeal(d);
+    return { meal, label: x.foodType || mealLabel(meal) };
+  }
+
+  const shortHash = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; return h.toString(36); };
+
+  /**
+   * Laskee, mitä Apple Healthista haettu vastaus muuttaisi. Ei muuta tilaa.
+   * res = { from, to, entries: [{ key, date, time, foodType, source, bundle, kcal, p, c, f }], sources }
+   * Palauttaa { changed, entries (uudet Yazio-merkinnät), from, to, count, days, kcal, others (muut lähteet) }.
+   */
+  function planImport(st, res, now = new Date().toISOString()) {
+    const from = res.from, to = res.to;
+    const yz = st.food.yazio || {};
+    const skip = new Set(yz.skip || []);
+    const old = new Map(st.food.entries.filter(e => e.src === 'yazio').map(e => [e.id, e]));
+    const entries = [];
+    (res.entries || []).forEach(x => {
+      if (!YAZIO_RE.test(`${x.bundle || ''} ${x.source || ''}`)) return;
+      if (!x.date || x.date < from || x.date > to) return;
+      const kcal = Math.round(+x.kcal || 0), p = r1(x.p), c = r1(x.c), f = r1(x.f);
+      if (!kcal && !p && !c && !f) return;
+      const id = 'yz_' + shortHash(x.key || `${x.date}|${x.time}|${x.foodType}`);
+      if (skip.has(id)) return;
+      const { meal, label } = importMeal(x);
+      const prev = old.get(id);
+      entries.push({
+        id, date: x.date, meal: prev && prev.mealMoved ? prev.meal : meal, name: `Yazio · ${label}`,
+        amount: 1, unit: 'annos', kcal, p, c, f, per100: null,
+        createdAt: prev ? prev.createdAt : now, src: 'yazio', time: x.time || null,
+        ...(prev && prev.mealMoved ? { mealMoved: true } : {})
+      });
+    });
+    const sig = e => [e.id, e.date, e.meal, e.kcal, e.p, e.c, e.f, e.name].join('|');
+    const inRange = st.food.entries.filter(e => e.src === 'yazio' && e.date >= from && e.date <= to);
+    const a = inRange.map(sig).sort().join('\n'), b = entries.map(sig).sort().join('\n');
+    const others = (res.sources || []).filter(s => !YAZIO_RE.test(`${s.bundle || ''} ${s.name || ''}`) && s.count > 0).map(s => s.name);
+    return {
+      changed: a !== b, entries, from, to,
+      count: entries.length, days: new Set(entries.map(e => e.date)).size,
+      kcal: entries.reduce((n, e) => n + e.kcal, 0), others
+    };
+  }
+
+  /** Vie suunnitelman tilaan: aikavälin vanhat Yazio-merkinnät pois, uudet tilalle, ateriamuistutukset kuitataan. */
+  function applyImport(st, plan) {
+    st.food.entries = st.food.entries.filter(e => !(e.src === 'yazio' && e.date >= plan.from && e.date <= plan.to)).concat(plan.entries);
+    const seen = new Set();
+    plan.entries.forEach(e => { const k = e.date + e.meal; if (!seen.has(k)) { seen.add(k); autoCompleteMeal(st, e.date, e.meal); } });
+  }
+
   /* ---------- Raportit ---------- */
   function rangeStats(st, from, days) {
     const out = [];
@@ -280,7 +349,7 @@
     MEALS, mealLabel, defaultMeal, defaultReminders, defaultLife, ensureLife,
     iso, parseISO, addDays, today, weekday, weekStartISO, hm, toMin,
     entriesOn, totals, dayTotals, scaleItem, recentFoods, searchFoods,
-    activeOn, tasksOn, taskProgress, setDone, nextReminder, autoCompleteMeal, onTrip, TRIP_MEAL,
+    activeOn, tasksOn, taskProgress, setDone, nextReminder, autoCompleteMeal, onTrip, TRIP_MEAL, planImport, applyImport,
     rangeStats, weightTrend, weeklyReport, serverState
   };
 })();

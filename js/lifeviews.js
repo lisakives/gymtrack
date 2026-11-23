@@ -199,6 +199,7 @@
         </section>
 
         <button class="btn btn-primary btn-block btn-lg" data-action="food-add" data-date="${date}">${icon('plus')} Lisää ruoka</button>
+        ${yazioBar()}
         ${favs.length ? `<div class="fav-row">${favs.map(f => `<button class="chip fav-chip" data-action="fav-add" data-id="${f.id}" data-date="${date}">${icon('plus', 'inline')} ${esc(f.name)} <small>${kcal(f.items.reduce((n, i) => n + i.kcal, 0))}</small></button>`).join('')}</div>` : ''}
 
         ${L.MEALS.map(m => {
@@ -214,7 +215,7 @@
               </div>
             </div>
             ${list.length ? `<ul class="food-list">${list.map(e => `<li data-action="food-entry" data-id="${e.id}">
-                <div class="grow"><b>${esc(e.name)}</b><span class="muted sm">${F.num(e.amount)} ${esc(e.unit || 'g')} · P ${F.num(e.p)} · H ${F.num(e.c)} · R ${F.num(e.f)}</span></div>
+                <div class="grow"><b>${esc(e.name)}</b><span class="muted sm">${e.src === 'yazio' ? (e.time ? 'klo ' + esc(e.time.replace(':', '.')) : 'Apple Health') : `${F.num(e.amount)} ${esc(e.unit || 'g')}`} · P ${F.num(e.p)} · H ${F.num(e.c)} · R ${F.num(e.f)}</span></div>
                 <span class="fl-kcal">${kcal(e.kcal)}</span></li>`).join('')}</ul>`
               : prevList.length ? `<button class="btn btn-ghost btn-sm" data-action="meal-copy" data-meal="${m.key}" data-from="${prevDay}" data-date="${date}">${icon('swap')} Toista edellisen päivän ateria (${kcal(L.totals(prevList).kcal)} kcal)</button>` : ''}
           </section>`;
@@ -279,6 +280,69 @@
             <div class="row-actions"><button class="icon-btn sm" data-action="fav-add" data-id="${f.id}" aria-label="Lisää tänään">${icon('plus')}</button>
             <button class="icon-btn sm danger" data-action="fav-delete" data-id="${f.id}" aria-label="Poista suosikki">${icon('trash')}</button></div></li>`;
         }).join('')}</ul>` : `<div class="empty"><div class="empty-ic">${icon('trophy')}</div><h3>Ei vielä suosikkeja</h3><p>Tallenna ruoka tai koko ateria suosikiksi napauttamalla sitä ruokapäiväkirjassa. Suosikin saa lisättyä yhdellä napautuksella.</p></div>`}
+      </main>`;
+  };
+
+  /* ================= YAZIO (APPLE HEALTH) ================= */
+  const clockOf = iso => new Date(iso).toLocaleTimeString('fi-FI', { hour: '2-digit', minute: '2-digit' });
+  const whenOf = iso => {
+    if (!iso) return '';
+    const d = L.iso(new Date(iso));
+    return (d === L.today() ? 'tänään' : d === L.addDays(L.today(), -1) ? 'eilen' : F.date(iso)) + ' klo ' + clockOf(iso);
+  };
+  /** Laitekohtainen tieto viimeisimmästä hausta (ei synkronoida pilveen, ettei jokainen haku luo muutosta). */
+  L.yazioLast = () => { try { return JSON.parse(localStorage.getItem('gymtrack.yazio.last') || 'null'); } catch (e) { return null; } };
+
+  function yazioBar() {
+    const st = S();
+    if (!GT.NATIVE || !(st.food.yazio && st.food.yazio.on)) return '';
+    const last = L.yazioLast();
+    const busy = VS.yazioBusy;
+    return `<div class="yazio-bar"><a class="grow muted sm" href="#/food-yazio">${icon('swap', 'inline')} Yazio · ${busy ? 'haetaan…' : last && last.at ? 'haettu ' + whenOf(last.at) : 'ei vielä haettu'}</a>
+      <button class="btn btn-ghost btn-sm" data-action="yazio-sync" ${busy ? 'disabled' : ''}>Päivitä</button></div>`;
+  }
+
+  V.foodYazio = () => {
+    const st = S();
+    const yz = st.food.yazio || {};
+    const native = !!GT.NATIVE;
+    const on = !!yz.on;
+    const last = L.yazioLast();
+    const t = L.today();
+    const week = st.food.entries.filter(e => e.src === 'yazio' && e.date > L.addDays(t, -7));
+    const wt = L.totals(week);
+    const step = (ok, title, body) => `<li class="step ${ok ? 'ok' : ''}"><span class="step-ic">${ok ? icon('check') : '•'}</span><div class="grow"><b>${title}</b>${body ? `<div class="muted sm">${body}</div>` : ''}</div></li>`;
+    return `
+      ${header('Yazio', { back: 'food', sub: 'Ruoka' })}
+      <main class="content">
+        <section class="card">
+          <p class="sheet-text">Yazio kirjoittaa ateriasi kalorit ja makrot Apple Healthiin. GymTrackin iPhone-sovellus lukee ne sieltä ja lisää ne Ruoka-näkymään omiksi riveikseen (esim. <b>Yazio · Lounas</b>). Ruokaa ei tarvitse kirjata kahdesti.</p>
+          ${native ? `<ol class="steps">
+            ${step(true, 'Yhdistä Yazio Apple Healthiin', 'Yaziossa: <b>Profiili → Asetukset → Apple Health</b> (tai <i>Yhdistetyt sovellukset</i>) → yhdistä ja salli <b>ravintotiedot</b> kirjoitettavaksi.')}
+            ${step(on, 'Salli GymTrackin lukea ravintotiedot', on ? 'Käytössä. Jos tietoja ei tule, tarkista oikeudet: <b>Terveys → profiilikuva → Sovellukset → GymTrack</b>.' : 'Napauta alta. iPhone kysyy lupaa lukea kalorit, proteiini, hiilihydraatit ja rasva.')}
+            ${step(!!(last && last.count), 'Tiedot tulevat automaattisesti', 'Haku tehdään aina, kun avaat GymTrackin, ja se kattaa viimeiset 7 päivää. Yaziossa tehdyt muutokset päivittyvät seuraavalla haulla.')}
+          </ol>
+          ${on ? `<button class="btn btn-primary btn-block btn-lg" data-action="yazio-sync" ${VS.yazioBusy ? 'disabled' : ''}>${icon('swap')} ${VS.yazioBusy ? 'Haetaan…' : 'Hae nyt'}</button>`
+               : `<button class="btn btn-primary btn-block btn-lg" data-action="yazio-enable">${icon('swap')} Ota Yazio-tuonti käyttöön</button>`}` : `
+          <p class="sheet-text">Apple Healthin tietoja voi lukea vain GymTrackin <b>iPhone-sovellus</b>, ei selain. Kun otat tuonnin käyttöön iPhone-sovelluksessa (<b>Ruoka → valikko → Yazio-yhteys</b>), Yazio-ateriat tallentuvat tiliisi ja näkyvät automaattisesti myös täällä.</p>`}
+        </section>
+
+        ${last && native ? `<div class="section-title">Viimeisin haku</div>
+        <section class="card">
+          ${last.error ? `<p class="sheet-text">${icon('x', 'inline')} ${esc(last.error)}</p>` : `<p class="sheet-text"><b>${whenOf(last.at)}</b>: ${last.count} ateriaa ${last.days} päivältä (${kcal(last.kcal)} kcal).</p>`}
+          ${!last.error && !last.count ? `<p class="muted sm">Apple Healthista ei löytynyt Yazion ravintotietoja. Tarkista, että Yazio on yhdistetty Apple Healthiin ja että GymTrackilla on lukuoikeus.${last.others && last.others.length ? ` Ravintotietoja löytyi muista lähteistä: ${last.others.map(esc).join(', ')}.` : ''}</p>` : ''}
+        </section>` : ''}
+
+        <div class="section-title">Viimeiset 7 päivää Yaziosta</div>
+        <section class="card">
+          ${week.length ? `<p class="sheet-text">${week.length} ateriaa · ${kcal(wt.kcal)} kcal · P ${g(wt.p)} · H ${g(wt.c)} · R ${g(wt.f)}</p>` : '<p class="muted sm">Ei vielä tuotuja aterioita.</p>'}
+          <p class="muted sm">Tuodut rivit voi siirtää toiselle aterialle tai poistaa kuten muutkin. Poistettu rivi ei palaa seuraavassa haussa, ja muokattu rivi muuttuu omaksi merkinnäksesi.</p>
+        </section>
+
+        ${native && on ? `<section class="card">
+          <button class="btn btn-soft btn-block" data-action="health-open">Avaa Terveys-appi</button>
+          <button class="btn btn-danger-ghost btn-block" data-action="yazio-disable">Poista Yazio-tuonti käytöstä</button>
+        </section>` : ''}
       </main>`;
   };
 

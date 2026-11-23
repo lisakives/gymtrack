@@ -26,6 +26,18 @@
     sync();
   }
 
+  /* Yazio-merkinnät (src: 'yazio') tuodaan Apple Healthista uudelleen jokaisella synkronoinnilla.
+   * Poistettu merkintä merkitään ohitettavaksi, ettei se palaa, ja muokattu muuttuu omaksi merkinnäksi. */
+  function skipYazio(s, ids) {
+    const yz = s.food.yazio = s.food.yazio || {};
+    yz.skip = (yz.skip || []).concat(ids.filter(id => String(id).startsWith('yz_'))).slice(-400);
+  }
+  function detachYazio(s, e) {
+    if (e.src !== 'yazio') return;
+    skipYazio(s, [e.id]);
+    e.id = M.uid('f'); delete e.src; delete e.mealMoved;
+  }
+
   function itemFromResult(x) {
     // tietokanta-/viimeisin-/suosikkirivi → lisättävä ruoka oletusmäärällä
     return L.scaleItem(x, x.amount) || x;
@@ -321,6 +333,7 @@
     'task-menu': el => taskMenu(el.dataset.id),
     'food-menu': el => ui.menu(el, [
       { label: 'Tavoitteet', icon: 'flag', action: 'food-goals' },
+      { label: 'Yazio-yhteys', icon: 'swap', href: '#/food-yazio' },
       { label: 'Suosikit', icon: 'trophy', href: '#/food-favs' },
       { label: 'Viikkoraportti', icon: 'note', href: '#/food-report/week' },
       { label: 'Kuukausiraportti', icon: 'chart', href: '#/food-report/month' }
@@ -350,11 +363,11 @@
           <button class="btn btn-ghost btn-block" data-sheet="cancel">Peruuta</button></div>`);
       if (r === 'amount') {
         const v = await ui.form({ title: 'Muuta määrää', fields: [{ name: 'amount', label: `Määrä (${e.unit})`, type: 'number', value: fmtAmt(e.amount), required: true }] });
-        if (v && !v.__action) { const it = L.scaleItem(e, v.amount); if (it) { Store.update(() => Object.assign(e, it)); sync(); } }
-      } else if (r && r.startsWith('move:')) { Store.update(s => { e.meal = r.slice(5); L.autoCompleteMeal(s, e.date, e.meal); }); sync(); }
+        if (v && !v.__action) { const it = L.scaleItem(e, v.amount); if (it) { Store.update(s => { detachYazio(s, e); Object.assign(e, it); }); sync(); } }
+      } else if (r && r.startsWith('move:')) { Store.update(s => { e.meal = r.slice(5); if (e.src === 'yazio') e.mealMoved = true; L.autoCompleteMeal(s, e.date, e.meal); }); sync(); }
       else if (r === 'fav') saveFavorite(e.name, [e]);
-      else if (r === 'edit') return customFood(e.date, e.meal, e);
-      else if (r === 'delete') { Store.update(s => { s.food.entries = s.food.entries.filter(x => x.id !== e.id); }); ui.toast('Poistettu'); sync(); }
+      else if (r === 'edit') { if (e.src === 'yazio') Store.update(s => detachYazio(s, e)); return customFood(e.date, e.meal, e); }
+      else if (r === 'delete') { Store.update(s => { skipYazio(s, [e.id]); s.food.entries = s.food.entries.filter(x => x.id !== e.id); }); ui.toast('Poistettu'); sync(); }
       render();
     },
     'meal-menu': async el => {
@@ -371,7 +384,7 @@
       } else if (r === 'clear') {
         if (await ui.confirm({ title: 'Tyhjennetäänkö ateria?', ok: 'Tyhjennä', danger: true })) {
           const ids = new Set(list.map(x => x.id));
-          Store.update(s => { s.food.entries = s.food.entries.filter(x => !ids.has(x.id)); });
+          Store.update(s => { skipYazio(s, [...ids]); s.food.entries = s.food.entries.filter(x => !ids.has(x.id)); });
           sync();
         }
       }

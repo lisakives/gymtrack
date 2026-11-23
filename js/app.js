@@ -19,6 +19,7 @@
     [/^food\/(\d{4}-\d{2}-\d{2})$/, m => V.food(m[1]), 'food'],
     [/^food-report\/(week|month)$/, m => V.foodReport(m[1]), 'food'],
     [/^food-favs$/, () => V.foodFavs(), 'food'],
+    [/^food-yazio$/, () => V.foodYazio(), 'food'],
     [/^reminders$/, () => V.reminders(), 'reminders'],
     [/^notifications$/, () => V.notifications(), 'reminders'],
     [/^report(?:\/(.+))?$/, m => V.report(m[1]), 'today'],
