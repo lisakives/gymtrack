@@ -199,7 +199,7 @@
         </section>
 
         <button class="btn btn-primary btn-block btn-lg" data-action="food-add" data-date="${date}">${icon('plus')} Lisää ruoka</button>
-        ${yazioBar()}
+        ${yazioBar(date)}
         ${favs.length ? `<div class="fav-row">${favs.map(f => `<button class="chip fav-chip" data-action="fav-add" data-id="${f.id}" data-date="${date}">${icon('plus', 'inline')} ${esc(f.name)} <small>${kcal(f.items.reduce((n, i) => n + i.kcal, 0))}</small></button>`).join('')}</div>` : ''}
 
         ${L.MEALS.map(m => {
@@ -215,7 +215,7 @@
               </div>
             </div>
             ${list.length ? `<ul class="food-list">${list.map(e => `<li data-action="food-entry" data-id="${e.id}">
-                <div class="grow"><b>${esc(e.name)}</b><span class="muted sm">${e.src === 'yazio' ? (e.time ? 'klo ' + esc(e.time.replace(':', '.')) : 'Apple Health') : `${F.num(e.amount)} ${esc(e.unit || 'g')}`} · P ${F.num(e.p)} · H ${F.num(e.c)} · R ${F.num(e.f)}</span></div>
+                <div class="grow"><b>${e.src === 'yazio' ? `${esc(e.name.replace(/^Yazio · /, ''))} <span class="yz-pill">Yazio</span>` : esc(e.name)}</b><span class="muted sm">${e.src === 'yazio' ? (e.time ? 'klo ' + esc(e.time.replace(':', '.')) : 'Apple Health') : `${F.num(e.amount)} ${esc(e.unit || 'g')}`} · P ${F.num(e.p)} · H ${F.num(e.c)} · R ${F.num(e.f)}</span></div>
                 <span class="fl-kcal">${kcal(e.kcal)}</span></li>`).join('')}</ul>`
               : prevList.length ? `<button class="btn btn-ghost btn-sm" data-action="meal-copy" data-meal="${m.key}" data-from="${prevDay}" data-date="${date}">${icon('swap')} Toista edellisen päivän ateria (${kcal(L.totals(prevList).kcal)} kcal)</button>` : ''}
           </section>`;
@@ -293,13 +293,49 @@
   /** Laitekohtainen tieto viimeisimmästä hausta (ei synkronoida pilveen, ettei jokainen haku luo muutosta). */
   L.yazioLast = () => { try { return JSON.parse(localStorage.getItem('gymtrack.yazio.last') || 'null'); } catch (e) { return null; } };
 
-  function yazioBar() {
+  /** Yazio-kortti Ruoka-näkymän päivälle: päivän Yazio-osuus ja päivityspainike (iPhone-sovelluksessa). */
+  function yazioBar(date) {
     const st = S();
-    if (!GT.NATIVE || !(st.food.yazio && st.food.yazio.on)) return '';
+    const on = !!(GT.NATIVE && st.food.yazio && st.food.yazio.on);
+    const list = L.entriesOn(st, date).filter(e => e.src === 'yazio');
+    if (!on && !list.length) return '';
+    const t = L.totals(list);
     const last = L.yazioLast();
     const busy = VS.yazioBusy;
-    return `<div class="yazio-bar"><a class="grow muted sm" href="#/food-yazio">${icon('swap', 'inline')} Yazio · ${busy ? 'haetaan…' : last && last.at ? 'haettu ' + whenOf(last.at) : 'ei vielä haettu'}</a>
-      <button class="btn btn-ghost btn-sm" data-action="yazio-sync" ${busy ? 'disabled' : ''}>Päivitä</button></div>`;
+    const sub = on ? (busy ? 'Haetaan Apple Healthista…' : last && last.error ? 'Haku epäonnistui – napauta lisätietoja' : last && last.at ? 'Päivitetty ' + whenOf(last.at) : 'Ei vielä haettu') : 'Tuotu Apple Healthista';
+    return `<section class="card yz-card">
+      <a class="yz-main" href="#/food-yazio">
+        <span class="yz-ic">${icon('swap')}</span>
+        <span class="grow"><b>${list.length ? `Yaziosta ${kcal(t.kcal)} kcal` : 'Yazio'}</b>
+          <span class="muted sm">${list.length ? `${list.length} ${list.length === 1 ? 'ateria' : 'ateriaa'} · P ${g(t.p)} · H ${g(t.c)} · R ${g(t.f)}` : 'Ei Yazio-aterioita tälle päivälle'}</span>
+          <span class="yz-sub ${last && last.error ? 'err' : ''}">${sub}</span></span>
+      </a>
+      ${on ? `<button class="icon-btn sm yz-refresh ${busy ? 'busy' : ''}" data-action="yazio-sync" aria-label="Päivitä Yazio-ateriat" ${busy ? 'disabled' : ''}>${icon('swap')}</button>` : ''}
+    </section>`;
+  }
+
+  /** Viimeisten 7 päivän Yazio-ateriat päivittäin. */
+  function yazioDays(st) {
+    const t = L.today();
+    const goals = st.food.goals || {};
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const d = L.addDays(t, -i);
+      const all = L.dayTotals(st, d);
+      const yz = L.totals(L.entriesOn(st, d).filter(e => e.src === 'yazio'));
+      days.push({ d, all, yz });
+    }
+    const max = Math.max(goals.kcal || 0, ...days.map(x => x.all.kcal), 1);
+    const label = d => d === t ? 'Tänään' : d === L.addDays(t, -1) ? 'Eilen' : DAY2[L.weekday(d)] + ' ' + F.date(L.parseISO(d), { day: 'numeric', month: 'numeric' });
+    return `<ul class="yz-days">${days.map(({ d, all, yz }) => {
+      const own = Math.max(0, all.kcal - yz.kcal);
+      return `<li><a href="#/food/${d}">
+        <div class="yz-day-top"><b>${label(d)}</b><span>${all.kcal ? `${kcal(all.kcal)} kcal` : '<span class="muted">–</span>'}</span></div>
+        <div class="yz-day-bar"><i class="yz" style="width:${(yz.kcal / max * 100).toFixed(1)}%"></i><i class="own" style="width:${(own / max * 100).toFixed(1)}%"></i>${goals.kcal ? `<em style="left:${(goals.kcal / max * 100).toFixed(1)}%"></em>` : ''}</div>
+        <div class="muted sm">${all.n ? `P ${g(all.p)} · H ${g(all.c)} · R ${g(all.f)}${yz.n && own ? ` · Yazio ${kcal(yz.kcal)} kcal` : ''}` : 'Ei kirjauksia'}</div>
+      </a></li>`;
+    }).join('')}</ul>
+    <div class="yz-legend"><span><i class="yz"></i>Yazio</span><span><i class="own"></i>Kirjattu GymTrackiin</span>${goals.kcal ? `<span><i class="goal"></i>Tavoite ${kcal(goals.kcal)} kcal</span>` : ''}</div>`;
   }
 
   V.foodYazio = () => {
@@ -315,7 +351,9 @@
     return `
       ${header('Yazio', { back: 'food', sub: 'Ruoka' })}
       <main class="content">
-        <section class="card">
+        <section class="card yz-hero">
+          <div class="yz-hero-top"><span class="yz-ic lg">${icon('swap')}</span><div><b>Yazio-tuonti</b><div class="muted sm">${native ? 'Yazio → Apple Health → GymTrack' : 'Toimii iPhone-sovelluksessa'}</div></div>
+            ${native ? `<span class="yz-state ${on ? 'on' : ''}">${on ? 'Päällä' : 'Pois'}</span>` : ''}</div>
           <p class="sheet-text">Yazio kirjoittaa ateriasi kalorit ja makrot Apple Healthiin. GymTrackin iPhone-sovellus lukee ne sieltä ja lisää ne Ruoka-näkymään omiksi riveikseen (esim. <b>Yazio · Lounas</b>). Ruokaa ei tarvitse kirjata kahdesti.</p>
           ${native ? `<ol class="steps">
             ${step(true, 'Yhdistä Yazio Apple Healthiin', 'Yaziossa: <b>Profiili → Asetukset → Apple Health</b> (tai <i>Yhdistetyt sovellukset</i>) → yhdistä ja salli <b>ravintotiedot</b> kirjoitettavaksi.')}
@@ -333,9 +371,10 @@
           ${!last.error && !last.count ? `<p class="muted sm">Apple Healthista ei löytynyt Yazion ravintotietoja. Tarkista, että Yazio on yhdistetty Apple Healthiin ja että GymTrackilla on lukuoikeus.${last.others && last.others.length ? ` Ravintotietoja löytyi muista lähteistä: ${last.others.map(esc).join(', ')}.` : ''}</p>` : ''}
         </section>` : ''}
 
-        <div class="section-title">Viimeiset 7 päivää Yaziosta</div>
+        <div class="section-title">Päivittäin</div>
         <section class="card">
-          ${week.length ? `<p class="sheet-text">${week.length} ateriaa · ${kcal(wt.kcal)} kcal · P ${g(wt.p)} · H ${g(wt.c)} · R ${g(wt.f)}</p>` : '<p class="muted sm">Ei vielä tuotuja aterioita.</p>'}
+          ${yazioDays(st)}
+          ${week.length ? `<p class="muted sm">7 päivän aikana Yaziosta ${week.length} ateriaa · ${kcal(wt.kcal)} kcal · P ${g(wt.p)}. Napauta päivää nähdäksesi sen ateriat.</p>` : ''}
           <p class="muted sm">Tuodut rivit voi siirtää toiselle aterialle tai poistaa kuten muutkin. Poistettu rivi ei palaa seuraavassa haussa, ja muokattu rivi muuttuu omaksi merkinnäksesi.</p>
         </section>
 

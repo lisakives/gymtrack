@@ -74,7 +74,7 @@ ok(s.food.entries.find(e => e.name === 'Yazio · Lounas').kcal === 750, 'muutos 
 // poisto ei palaa
 await go('#/food');
 
-ok(await page.isVisible('.yazio-bar'), 'Ruoka-näkymässä Yazio-tilarivi');
+ok(await page.isVisible('.yz-card'), 'Ruoka-näkymässä Yazio-tilarivi');
 const lid = s.food.entries.find(e => e.name === 'Yazio · Lounas').id;
 await page.click(`[data-action="food-entry"][data-id="${lid}"]`); await page.waitForTimeout(400);
 await page.click('[data-sheet="delete"]'); await page.waitForTimeout(400);
